@@ -1,0 +1,323 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+  --portal-primary: #2563eb;
+  --portal-accent: #0d9488;
+  --portal-primary-soft: rgba(37, 99, 235, 0.14);
+  --portal-accent-soft: rgba(13, 148, 136, 0.18);
+  --portal-bg: #eef2f9;
+  --portal-surface: #ffffff;
+  --portal-text: #0f172a;
+  --portal-muted: #64748b;
+  --portal-stroke: rgba(148, 163, 184, 0.38);
+  --portal-sidebar: #0a0f1a;
+  --portal-sidebar-border: rgba(255, 255, 255, 0.08);
+  --portal-grid-line: rgba(15, 23, 42, 0.045);
+  --portal-shadow-soft: 0 4px 24px rgba(15, 23, 42, 0.07);
+  --portal-shadow-card: 0 12px 40px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --font-display: "Sora", "Outfit", system-ui, sans-serif;
+}
+
+:root.portal-theme-dark {
+  --portal-bg: #020617;
+  --portal-surface: #0f172a;
+  --portal-text: #e5e7eb;
+  --portal-muted: #94a3b8;
+  --portal-stroke: rgba(148, 163, 184, 0.22);
+  --portal-grid-line: rgba(148, 163, 184, 0.07);
+}
+
+:root.portal-theme-dark body {
+  background-image:
+    linear-gradient(var(--portal-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--portal-grid-line) 1px, transparent 1px),
+    radial-gradient(ellipse 900px 480px at 15% -10%, rgba(37, 99, 235, 0.14), transparent 55%),
+    radial-gradient(ellipse 700px 400px at 95% 0%, rgba(13, 148, 136, 0.1), transparent 50%),
+    radial-gradient(ellipse 600px 500px at 50% 100%, rgba(99, 102, 241, 0.08), transparent 45%),
+    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  background-size:
+    48px 48px,
+    48px 48px,
+    auto,
+    auto,
+    auto,
+    auto;
+}
+
+.portal-text-main {
+  color: var(--portal-text);
+}
+
+.portal-text-muted {
+  color: var(--portal-muted);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--portal-bg);
+  background-image:
+    linear-gradient(var(--portal-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--portal-grid-line) 1px, transparent 1px),
+    radial-gradient(ellipse 900px 480px at 15% -10%, rgba(37, 99, 235, 0.2), transparent 55%),
+    radial-gradient(ellipse 700px 400px at 95% 0%, rgba(13, 148, 136, 0.14), transparent 50%),
+    radial-gradient(ellipse 600px 500px at 50% 100%, rgba(99, 102, 241, 0.1), transparent 45%),
+    linear-gradient(180deg, #eef2f9 0%, #e8ecf6 100%);
+  background-size:
+    48px 48px,
+    48px 48px,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-attachment: fixed;
+  color: var(--portal-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Full-page auth backdrop (Login route) */
+.portal-auth-page {
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(37, 99, 235, 0.35), transparent),
+    radial-gradient(ellipse 50% 40% at 100% 50%, rgba(16, 185, 129, 0.2), transparent),
+    linear-gradient(165deg, #0f172a 0%, #1e293b 35%, #0f172a 100%);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.portal-surface-card {
+  background: var(--portal-surface);
+  border-radius: 1.25rem;
+  border: 1px solid var(--portal-stroke);
+  box-shadow: var(--portal-shadow-card);
+}
+
+.portal-app-top-accent {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 100;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--portal-primary),
+    var(--portal-accent),
+    #6366f1
+  );
+  opacity: 0.92;
+}
+
+.portal-hero-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+}
+
+.portal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.28rem 0.65rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--portal-primary-soft) 70%, transparent);
+  color: var(--portal-primary);
+  border: 1px solid color-mix(in srgb, var(--portal-primary) 22%, transparent);
+}
+
+.portal-btn-primary {
+  background: linear-gradient(135deg, var(--portal-primary), var(--portal-accent));
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.28);
+}
+
+.portal-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 8px 26px rgba(37, 99, 235, 0.34);
+}
+
+.portal-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--portal-surface);
+  color: var(--portal-text);
+  border: 1px solid var(--portal-stroke);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.portal-btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--portal-primary-soft) 45%, var(--portal-surface));
+  border-color: color-mix(in srgb, var(--portal-primary) 28%, var(--portal-stroke));
+  box-shadow: var(--portal-shadow-soft);
+}
+
+.portal-btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.portal-btn-danger-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: color-mix(in srgb, #ef4444 12%, var(--portal-surface));
+  color: #b91c1c;
+  border: 1px solid color-mix(in srgb, #ef4444 28%, var(--portal-stroke));
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.portal-btn-danger-soft:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444 18%, var(--portal-surface));
+}
+
+.portal-btn-emerald-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: color-mix(in srgb, var(--portal-accent) 14%, var(--portal-surface));
+  color: #0f766e;
+  border: 1px solid color-mix(in srgb, var(--portal-accent) 35%, var(--portal-stroke));
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.portal-btn-emerald-soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--portal-accent) 22%, var(--portal-surface));
+}
+
+.portal-pro-table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.portal-pro-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.portal-pro-table th {
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--portal-text);
+  background: color-mix(in srgb, var(--portal-bg) 55%, var(--portal-surface));
+  border-bottom: 1px solid var(--portal-stroke);
+  white-space: nowrap;
+}
+
+.portal-pro-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--portal-stroke) 65%, transparent);
+  color: var(--portal-text);
+  vertical-align: middle;
+}
+
+.portal-pro-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--portal-primary-soft) 35%, transparent);
+}
+
+.portal-select-compact {
+  border: 1px solid var(--portal-stroke);
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  background: var(--portal-surface);
+  color: var(--portal-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.portal-select-compact:focus {
+  outline: none;
+  border-color: var(--portal-primary);
+  box-shadow: 0 0 0 3px var(--portal-primary-soft);
+}
+
+/* In @layer components so Tailwind pl-/pr-* utilities can override horizontal padding (e.g. icon fields). */
+@layer components {
+  .portal-input {
+    width: 100%;
+    border: 1px solid var(--portal-stroke);
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background: var(--portal-surface);
+    color: var(--portal-text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .portal-input:focus {
+    outline: none;
+    border-color: var(--portal-primary);
+    box-shadow: 0 0 0 3px var(--portal-primary-soft);
+  }
+
+  .portal-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--portal-muted);
+    margin-bottom: 0.35rem;
+  }
+}
+
+.portal-page {
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .portal-page {
+    padding: 2rem 1.5rem;
+  }
+}

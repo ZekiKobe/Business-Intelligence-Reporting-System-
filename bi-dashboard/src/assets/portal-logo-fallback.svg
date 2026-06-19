@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="portalLogoGradDash" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#portalLogoGradDash)"/>
+  <path fill="#fff" fill-opacity="0.95" d="M8 22h4V12H8v10zm6 0h4V8h-4v14zm6 0h4v-6h-4v6z"/>
+</svg>

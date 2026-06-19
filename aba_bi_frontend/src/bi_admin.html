@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Dashboard Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4361ee',
+                        secondary: '#3f37c9',
+                        accent: '#4895ef',
+                        dark: '#1e1e2c',
+                        light: '#f8f9fa',
+                        success: '#4cc9f0',
+                        warning: '#f72585',
+                        info: '#7209b7'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .sidebar {
+            width: 250px;
+            transition: all 0.3s ease;
+        }
+        .main-content {
+            transition: all 0.3s ease;
+            width: calc(100% - 250px);
+        }
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        .main-content.expanded {
+            width: calc(100% - 70px);
+        }
+        .chart-container {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+        }
+        .stat-card {
+            transition: transform 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        #root {
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root">
+        <!-- This is a static preview - the actual React app would be rendered here -->
+        <div class="flex h-screen bg-gray-100">
+            <!-- Sidebar -->
+            <div class="sidebar bg-white shadow-md">
+                <div class="p-4 flex items-center justify-between border-b">
+                    <h1 class="text-xl font-bold text-primary">BI Dashboard</h1>
+                    <button class="p-1 rounded-md hover:bg-gray-100">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+                
+                <nav class="mt-6">
+                    <a href="#" class="flex items-center py-3 px-6 bg-primary text-white">
+                        <i class="fas fa-home mr-3"></i>
+                        Dashboard
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-100">
+                        <i class="fas fa-chart-bar mr-3"></i>
+                        Reports
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-100">
+                        <i class="fas fa-layer-group mr-3"></i>
+                        Report Groups
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-100">
+                        <i class="fas fa-users mr-3"></i>
+                        Users
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-100">
+                        <i class="fas fa-cog mr-3"></i>
+                        Settings
+                    </a>
+                </nav>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main-content overflow-auto">
+                <!-- Header -->
+                <header class="bg-white shadow-sm py-4 px-6 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="relative w-64">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" placeholder="Search..." class="pl-10 pr-4 py-2 w-full rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <button class="relative p-2 rounded-full hover:bg-gray-100">
+                            <i class="fas fa-bell"></i>
+                            <span class="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">3</span>
+                        </button>
+                        
+                        <div class="relative">
+                            <button class="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
+                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
+                                    JD
+                                </div>
+                                <span class="text-sm">John Doe</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Page Content -->
+                <main class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-dark">Dashboard</h2>
+                        <button class="bg-primary text-white px-4 py-2 rounded-md flex items-center">
+                            <i class="fas fa-plus mr-2"></i> New Dashboard
+                        </button>
+                    </div>
+                    
+                    <!-- Stats Overview -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Total Reports</p>
+                                    <h3 class="text-2xl font-bold text-dark">142</h3>
+                                </div>
+                                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-chart-bar text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-green-500 mt-2"><span class="font-semibold">+12%</span> from last month</p>
+                        </div>
+                        
+                        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Active Users</p>
+                                    <h3 class="text-2xl font-bold text-dark">28</h3>
+                                </div>
+                                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                    <i class="fas fa-users text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-green-500 mt-2"><span class="font-semibold">+3</span> new this month</p>
+                        </div>
+                        
+                        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Report Groups</p>
+                                    <h3 class="text-2xl font-bold text-dark">12</h3>
+                                </div>
+                                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                                    <i class="fas fa-layer-group text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">No change from last month</p>
+                        </div>
+                        
+                        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Dashboards</p>
+                                    <h3 class="text-2xl font-bold text-dark">8</h3>
+                                </div>
+                                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                                    <i class="fas fa-tachometer-alt text-xl"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-green-500 mt-2"><span class="font-semibold">+1</span> new this week</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="chart-container bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <h3 class="text-lg font-semibold text-dark mb-4">Revenue by Category</h3>
+                            <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+                                <p class="text-gray-500">Bar chart would be displayed here</p>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <h3 class="text-lg font-semibold text-dark mb-4">User Distribution</h3>
+                            <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+                                <p class="text-gray-500">Pie chart would be displayed here</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Reports -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-semibold text-dark">Recent Reports</h3>
+                            <button class="text-primary text-sm flex items-center">
+                                View all <i class="fas fa-chevron-right ml-1"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-dark">Sales Report</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">Sales</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">John Doe</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">2023-05-01</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-red-600 hover:text-red-900">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-dark">Revenue Analysis</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">Finance</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">Jane Smith</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-500">2023-05-10</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <button class="text-blue-600 hover:text-blue-900 mr-3">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-red-600 hover:text-red-900">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This is just a static preview - the actual React app would have interactive functionality
+        console.log("This is a static preview. A real React app would be built with Vite.");
+    </script>
+</body>
+</html>
