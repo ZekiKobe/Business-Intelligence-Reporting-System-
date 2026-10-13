@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useBranding } from "../context/BrandingContext";
+import { useCurrentUser } from "../context/CurrentUserContext";
 
 export interface PortalLayoutProps {
   children: React.ReactNode;
@@ -11,6 +13,11 @@ export interface PortalLayoutProps {
 const PortalLayout: React.FC<PortalLayoutProps> = ({ children, contentMax = "max-w-6xl" }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { branding } = useBranding();
+  const { user } = useCurrentUser();
+  const location = useLocation();
+  const pageTitle = location.pathname.startsWith("/report/") ? "Report workspace" : location.pathname.startsWith("/settings") ? "Account settings" : "Report catalog";
+  const name = user?.fullName || user?.username || "Account";
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
 
   useEffect(() => {
     const onClose = () => setSidebarOpen(false);
@@ -39,6 +46,13 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ children, contentMax = "max
         </div>
 
         <main className="flex-1 overflow-auto" style={{ background: "var(--portal-bg)" }}>
+          <header className="hidden lg:flex sticky top-0 z-30 h-[4.5rem] items-center justify-between border-b border-portal-stroke px-8" style={{ background: "color-mix(in srgb, var(--portal-bg) 92%, transparent)", backdropFilter: "blur(14px)" }}>
+            <div><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-portal-muted">{branding.productName}</p><p className="mt-0.5 text-sm font-semibold text-portal-text">{pageTitle}</p></div>
+            <Link to="/settings/profile" className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--portal-primary-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600" aria-label="Open your profile">
+              <div className="hidden text-right xl:block"><p className="text-sm font-semibold text-portal-text">{name}</p><p className="text-[11px] text-portal-muted">{user?.role || "Portal user"}</p></div>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold text-white" style={{ background: "var(--portal-primary)" }}>{initials}</span>
+            </Link>
+          </header>
           <div
             className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-portal-stroke/80 backdrop-blur-md shadow-sm"
             style={{ background: "color-mix(in srgb, var(--portal-bg) 92%, transparent)" }}
