@@ -45,6 +45,7 @@ const LoginForm: React.FC = () => {
           localStorage.removeItem("bi_tenant_slug");
         }
         window.dispatchEvent(new Event("bi-branding-refresh"));
+        window.dispatchEvent(new Event("bi-auth-changed"));
         navigate("/home");
       } else {
         setError(data.message || "Login failed");

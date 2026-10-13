@@ -15,6 +15,7 @@ import {
 import { useBranding } from "../context/BrandingContext";
 import BrandingLogoImg from "./BrandingLogoImg";
 import { getReportGroups, logoutRequest } from "../services/api";
+import { useCurrentUser } from "../context/CurrentUserContext";
 
 interface Report {
   id: number | string;
@@ -33,6 +34,7 @@ const Sidebar: React.FC = () => {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { branding } = useBranding();
+  const { user, clearUser } = useCurrentUser();
 
   const [reportGroups, setReportGroups] = useState<ReportGroup[]>([]);
 
@@ -72,7 +74,9 @@ const Sidebar: React.FC = () => {
     localStorage.removeItem("bi_token");
     localStorage.removeItem("bi_refresh");
     localStorage.removeItem("bi_tenant_slug");
+    clearUser();
     window.dispatchEvent(new Event("bi-branding-refresh"));
+    window.dispatchEvent(new Event("bi-auth-changed"));
     navigate("/");
   };
 
@@ -250,8 +254,8 @@ const Sidebar: React.FC = () => {
             </div>
             {sidebarOpen && (
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-200 truncate">Signed in</p>
-                <p className="text-[11px] text-slate-500 truncate">Portal user</p>
+                <p className="text-sm font-medium text-slate-200 truncate">{user?.fullName || user?.username || "Signed in"}</p>
+                <p className="text-[11px] text-slate-500 truncate">{user?.role || "Portal user"}</p>
               </div>
             )}
           </div>

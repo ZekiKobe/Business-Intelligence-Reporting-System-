@@ -5,6 +5,7 @@ import PortalLayout from "../layouts/PortalLayout";
 import { useBranding } from "../context/BrandingContext";
 import { getReportGroups } from "../services/api";
 import { chartTypeLabel } from "../utils/reportChartData";
+import { useCurrentUser } from "../context/CurrentUserContext";
 
 interface ReportItem {
   id: number | string;
@@ -28,6 +29,7 @@ const Home: React.FC = () => {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const { branding } = useBranding();
+  const { user } = useCurrentUser();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,7 +70,7 @@ const Home: React.FC = () => {
   return (
     <PortalLayout contentMax="max-w-6xl">
           <div className="mb-6 md:mb-10">
-            <p className="portal-hero-eyebrow mb-2">{branding.companyName}</p>
+            <p className="portal-hero-eyebrow mb-2">{user?.fullName || user?.username ? `Welcome back, ${user?.fullName || user?.username}` : branding.companyName}</p>
             <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-portal-text tracking-tight leading-tight">
               {branding.productName}
             </h1>

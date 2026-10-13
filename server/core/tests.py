@@ -95,4 +95,17 @@ class ExternalLoginTests(TestCase):
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data["username"], "legacy.viewer")
 
+    def test_current_user_returns_the_authenticated_users_identity(self):
+        self.user.full_name = "Alice Example"
+        self.user.save(update_fields=["full_name"])
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/user/me/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], self.user.id)
+        self.assertEqual(response.data["username"], "alice")
+        self.assertEqual(response.data["fullName"], "Alice Example")
+        self.assertEqual(response.data["email"], "alice@example.com")
+
 # Create your tests here.

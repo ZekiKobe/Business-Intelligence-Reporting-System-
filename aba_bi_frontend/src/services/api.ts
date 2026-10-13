@@ -159,6 +159,24 @@ export const executeSql = async (payload: {
   return response.data;
 };
 
+export type CurrentUser = {
+  id: number;
+  username: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  joinDate?: string;
+};
+
+/** The server derives this identity from the authenticated session/token. */
+export const getCurrentUser = async (): Promise<CurrentUser> => {
+  const response = await api.get<CurrentUser>("user/me/");
+  return response.data;
+};
+
 export const executeSavedReport = async (
   reportId: string | number,
   payload: { limit?: number; parameters?: Record<string, string> }

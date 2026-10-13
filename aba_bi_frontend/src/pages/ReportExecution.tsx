@@ -3,7 +3,7 @@ import { useLocation, useParams } from "react-router-dom";
 import { ChevronDown, ChevronUp, FileDown, FileText, Play, Info } from "lucide-react";
 import { saveAs } from "file-saver";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable, { applyPlugin } from "jspdf-autotable";
 import Papa from "papaparse";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
@@ -16,6 +16,12 @@ import {
   rowMatchesFilters,
   type FilterControlKind,
 } from "../utils/reportFilters";
+
+try {
+  applyPlugin(jsPDF);
+} catch {
+  // Ignore if already registered
+}
 
 const normalizeId = (value: string) =>
   String(value || "")
@@ -271,7 +277,11 @@ const ReportExecutionPage = () => {
     const body = filteredRows.map((row) =>
       tableColumns.map((c) => getRowValue(row as Record<string, unknown>, c))
     );
-    doc.autoTable({ head: [tableColumns], body });
+    if (typeof (doc as any).autoTable === "function") {
+      (doc as any).autoTable({ head: [tableColumns], body });
+    } else {
+      autoTable(doc, { head: [tableColumns], body });
+    }
     doc.save(`${report?.name || "report"}_result.pdf`);
   };
 

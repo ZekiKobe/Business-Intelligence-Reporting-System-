@@ -223,12 +223,13 @@ class CurrentUserView(APIView):
         return Response(
             {
                 "id": user.id,
+                "username": user.username,
+                "fullName": user.full_name or user.username,
                 "firstName": first,
                 "lastName": last,
                 "email": user.email,
                 "phone": "",
                 "address": "",
-                "department": membership.status if membership else "Active",
                 "position": membership.role if membership else "Viewer",
                 "joinDate": membership.created_at.date().isoformat() if membership else "",
                 "status": membership.status if membership else "Active",
