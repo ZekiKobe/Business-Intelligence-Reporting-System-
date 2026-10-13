@@ -23,6 +23,9 @@ class QueryRun(models.Model):
     preview = models.JSONField(blank=True, default=dict)
     # Values supplied to a saved report, never rendered as SQL.
     parameters = models.JSONField(blank=True, default=dict)
+    # Internal SQLAlchemy placeholder values. Kept separate so execution
+    # details can show report parameter keys rather than generated bind names.
+    bound_parameters = models.JSONField(blank=True, default=dict)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)

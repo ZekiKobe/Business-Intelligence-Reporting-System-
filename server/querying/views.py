@@ -92,7 +92,7 @@ def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnecti
 def _execute_run(run: QueryRun, *, limit: int | None) -> QueryRun:
     started = perf_counter()
     try:
-        row_count, preview = execute_sql(connection=run.connection, sql=run.sql, limit=limit, parameters=run.parameters)
+        row_count, preview = execute_sql(connection=run.connection, sql=run.sql, limit=limit, parameters=run.bound_parameters)
         run.status = QueryRun.Status.SUCCEEDED
         run.row_count = row_count
         run.preview = {"rows": json.loads(json.dumps(preview, cls=DjangoJSONEncoder))}
@@ -157,8 +157,18 @@ class ReportExecuteView(APIView):
             return Response({"detail": "Invalid row limit."}, status=status.HTTP_400_BAD_REQUEST)
         if limit is not None and not 1 <= limit <= 200000:
             return Response({"detail": "Row limit must be between 1 and 200000."}, status=status.HTTP_400_BAD_REQUEST)
+        visible_parameters = {}
+        for config in (report.spec or {}).get("filter_configs") or []:
+            if not isinstance(config, dict):
+                continue
+            key = config.get("key")
+            if key and key in supplied_parameters and supplied_parameters[key] not in (None, ""):
+                visible_parameters[str(key)] = supplied_parameters[key]
+            elif key and config.get("default") not in (None, ""):
+                visible_parameters[str(key)] = config["default"]
         run = QueryRun.objects.create(
-            tenant=tenant, user=request.user, connection=connection, sql=sql, parameters=bound_parameters,
+            tenant=tenant, user=request.user, connection=connection, sql=sql,
+            parameters=visible_parameters, bound_parameters=bound_parameters,
             status=QueryRun.Status.RUNNING, started_at=datetime.now(tz=timezone.utc),
         )
         return Response(QueryRunSerializer(_execute_run(run, limit=limit)).data)

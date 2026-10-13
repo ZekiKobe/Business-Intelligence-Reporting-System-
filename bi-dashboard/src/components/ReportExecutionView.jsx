@@ -11,9 +11,10 @@ import {
   ChevronRightIcon,
   ChevronDoubleRightIcon,
   ArrowLeftIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { executeReportSql } from "../controllers/reportController";
-import { distinctValues, inferFilterKind, rowMatchesFilters } from "../utils/reportFilters";
+import { distinctValues, inferFilterKind } from "../utils/reportFilters";
 import {
   chartTypeLabel,
   normalizeChartViz,
@@ -22,6 +23,7 @@ import {
   metricOperationLabel,
 } from "../utils/reportChartData";
 import ReportChartPanel from "./ReportChartPanel";
+import ExecutionDetailsModal from "./ExecutionDetailsModal";
 
 const normalizeIdentifier = (value) =>
   String(value || "")
@@ -56,6 +58,9 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
   const [lastRowCount, setLastRowCount] = useState(null);
   const [lastRunAt, setLastRunAt] = useState(null);
   const [lastDurationMs, setLastDurationMs] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [executionDetails, setExecutionDetails] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const autoRunStartedRef = useRef(false);
 
   const spec = report?.spec || {};
@@ -63,6 +68,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
   const mainColumns = (spec?.main_columns || []).filter(Boolean);
   const aggregateColumns = (spec?.aggregate_columns || []).filter(Boolean);
   const filterColumns = (spec?.filter_columns || []).filter(Boolean);
+  const filterConfigs = useMemo(() => Array.isArray(spec?.filter_configs) ? spec.filter_configs.filter((config) => config && filterColumns.includes(config.key)) : [], [spec?.filter_configs, filterColumns]);
   const filterTypesFromSpec = spec?.filter_column_types || {};
   const chartTypeViz = spec?.chart_type && spec.chart_type !== "" ? spec.chart_type : "table";
   const chartValueAggregate = spec?.chart_value_aggregate || "sum";
@@ -93,11 +99,8 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
   }, [filterColumns, filterTypesFromSpec]);
 
   const filteredRows = useMemo(() => {
-    if (!filterColumns.length) return fetchedRows;
-    return fetchedRows.filter((row) =>
-      rowMatchesFilters(row, filterColumns, filterValues, filterTypes, getRowValue)
-    );
-  }, [fetchedRows, filterColumns, filterValues, filterTypes]);
+    return fetchedRows;
+  }, [fetchedRows]);
 
   const sortedRows = useMemo(() => {
     if (!sortConfig.key) return filteredRows;
@@ -114,26 +117,42 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
 
   useEffect(() => {
     setFetchedRows([]);
-    setFilterValues({});
+    setFilterValues(Object.fromEntries(filterConfigs.filter((config) => config.default !== null && config.default !== undefined && config.default !== "").map((config) => [config.key, config.default])));
     setLastRowCount(null);
     setLastRunAt(null);
     setLastDurationMs(null);
     setSortConfig({ key: null, direction: "ascending" });
     setCurrentPage(1);
     setError("");
+    setFieldErrors({});
+    setExecutionDetails(null);
+    setDetailsOpen(false);
     autoRunStartedRef.current = false;
   }, [report?.id]);
 
   const executeReport = useCallback(async () => {
     if (!report) return;
+    const nextErrors = {};
+    filterConfigs.forEach((config) => {
+      const value = filterValues[config.key];
+      if (config.required && (value === undefined || value === null || value === "")) nextErrors[config.key] = `${config.label || config.key} is required.`;
+      if (value && config.type === "number" && Number.isNaN(Number(value))) nextErrors[config.key] = `${config.label || config.key} must be a number.`;
+    });
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setError("Complete the required filters before running this report.");
+      return;
+    }
     setIsLoading(true);
     setCurrentPage(1);
     setError("");
+    setFieldErrors({});
     try {
-      const res = await executeReportSql(report.id, { limit: execRowLimit });
+      const parameters = Object.fromEntries(Object.entries(filterValues).filter(([, value]) => value !== "" && value !== null && value !== undefined));
+      const res = await executeReportSql(report.id, { limit: execRowLimit, parameters });
+      setExecutionDetails(res);
       const loaded = res?.preview?.rows || [];
       setFetchedRows(loaded);
-      setFilterValues({});
       setCurrentPage(1);
       setLastRowCount(typeof res?.row_count === "number" ? res.row_count : loaded.length);
       setLastRunAt(new Date().toLocaleString());
@@ -143,7 +162,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
     } finally {
       setIsLoading(false);
     }
-  }, [report, execRowLimit]);
+  }, [report, execRowLimit, filterConfigs, filterValues]);
 
   useEffect(() => {
     if (!autoRun || !report?.id || autoRunStartedRef.current) return;
@@ -307,7 +326,29 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
         </div>
       ) : null}
 
-      {filterColumns.length > 0 && !!fetchedRows.length && (
+      {filterConfigs.length > 0 ? (
+        <div className="p-4 sm:p-5 border-b" style={{ borderColor: "var(--stroke)", background: "color-mix(in srgb, var(--app-bg) 75%, var(--surface-bg))" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <AdjustmentsHorizontalIcon className="h-4 w-4 opacity-55" style={{ color: "var(--surface-muted)" }} />
+            <span className="text-sm font-semibold" style={{ color: "var(--surface-text)" }}>Report filters</span>
+            <button type="button" onClick={() => { setFilterValues({}); setFieldErrors({}); }} className="ui-btn-ghost text-xs ml-auto !py-1 !px-2" style={{ color: "var(--brand-primary)" }}>Reset</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filterConfigs.map((config) => {
+              const value = filterValues[config.key] ?? "";
+              const invalid = fieldErrors[config.key];
+              const update = (next) => { setFilterValues((previous) => ({ ...previous, [config.key]: next })); setFieldErrors((previous) => ({ ...previous, [config.key]: undefined })); };
+              const label = <span className="ui-label !mb-0">{config.label || config.key}{config.required ? <><span className="text-red-600"> *</span><span className="sr-only"> required</span></> : <span className="opacity-55"> (optional)</span>}</span>;
+              return <label key={config.key} className="flex flex-col gap-1">{label}
+                {config.type === "select" ? <select required={Boolean(config.required)} aria-invalid={Boolean(invalid)} value={value} onChange={(e) => update(e.target.value)} className="ui-select text-sm py-2"><option value="">{config.required ? "Select…" : "All"}</option>{(config.options || []).map((option) => <option key={String(option)} value={option}>{String(option)}</option>)}</select> : <input required={Boolean(config.required)} aria-invalid={Boolean(invalid)} type={config.type === "date" ? "date" : config.type === "number" ? "number" : "text"} value={value} onChange={(e) => update(e.target.value)} className="ui-input text-sm py-2" placeholder={config.type === "text" ? "Enter value…" : ""} />}
+                {invalid ? <span className="text-xs text-red-700" role="alert">{invalid}</span> : null}
+              </label>;
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {filterColumns.length > 0 && filterConfigs.length === 0 && !!fetchedRows.length && (
         <div className="p-3 sm:p-4 border-b" style={{ borderColor: "var(--stroke)", background: "color-mix(in srgb, var(--app-bg) 75%, var(--surface-bg))" }}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <AdjustmentsHorizontalIcon className="h-4 w-4 shrink-0 opacity-55" style={{ color: "var(--surface-muted)" }} />
@@ -529,6 +570,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
           {sortedRows.length ? indexOfFirstItem + 1 : 0}–{Math.min(indexOfLastItem, sortedRows.length)} of {sortedRows.length.toLocaleString()}
         </p>
       </div>
+      {executionDetails ? <div className="px-4 py-3 border-b" style={{ borderColor: "var(--stroke)", background: "var(--surface-bg)" }}><button type="button" onClick={() => setDetailsOpen(true)} className="ui-btn-secondary text-sm !py-2 !px-3 gap-1.5"><InformationCircleIcon className="h-4 w-4" /> View execution details</button></div> : null}
 
       <div className="overflow-x-auto">
         <table className="ui-pro-table min-w-full">
@@ -653,6 +695,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
           </button>
         </div>
       </div>
+      <ExecutionDetailsModal run={detailsOpen ? executionDetails : null} onClose={() => setDetailsOpen(false)} />
     </div>
   );
 }
