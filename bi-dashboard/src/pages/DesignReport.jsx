@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { EyeIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, PlusIcon, XMarkIcon, Squares2X2Icon, TableCellsIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   executeConnectionSql,
@@ -626,13 +626,6 @@ const DesignReport = () => {
     );
   }
 
-  const zoneStyles = {
-    available: { head: "var(--app-bg)", border: "var(--stroke)", accent: "var(--surface-muted)" },
-    header: { head: "color-mix(in srgb, var(--brand-primary) 12%, var(--surface-bg))", border: "color-mix(in srgb, var(--brand-primary) 35%, var(--stroke))", accent: "var(--brand-primary)" },
-    main: { head: "color-mix(in srgb, #059669 12%, var(--surface-bg))", border: "color-mix(in srgb, #059669 30%, var(--stroke))", accent: "#059669" },
-    filter: { head: "color-mix(in srgb, #dc2626 10%, var(--surface-bg))", border: "color-mix(in srgb, #dc2626 28%, var(--stroke))", accent: "#dc2626" },
-  };
-
   const previewTableColumnNames =
     chartType !== "table"
       ? chartSqlMainColumns?.length
@@ -1044,30 +1037,25 @@ const DesignReport = () => {
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="designer-canvas mb-6">
             {[
-              { id: "available", title: "Available" },
-              { id: "header", title: "Header" },
-              { id: "main", title: "Main" },
-              { id: "filter", title: "Filter" },
+              { id: "available", title: "Field library", caption: "Source columns", icon: Squares2X2Icon },
+              { id: "header", title: "Header", caption: "Top summary", icon: TableCellsIcon },
+              { id: "main", title: "Table", caption: "Result columns", icon: TableCellsIcon },
+              { id: "filter", title: "Filters", caption: "Run-time prompts", icon: FunnelIcon },
             ].map((zone) => (
               <div
                 key={zone.id}
-                className="p-3 sm:p-4 rounded-xl border transition-all duration-200 hover:shadow-md"
-                style={{
-                  borderColor: zoneStyles[zone.id]?.border || "var(--stroke)",
-                  background: zoneStyles[zone.id]?.head || "var(--surface-bg)",
-                }}
+                className={`designer-zone designer-zone--${zone.id}`}
               >
-                <h4
-                  className="font-display font-semibold mb-3 text-xs uppercase tracking-wide"
-                  style={{ color: zoneStyles[zone.id]?.accent || "var(--surface-text)" }}
-                >
-                  {zone.title}
-                </h4>
+                <div className="designer-zone__header">
+                  <span className="designer-zone__icon"><zone.icon className="h-4 w-4" /></span>
+                  <div className="min-w-0"><h4 className="designer-zone__title">{zone.title}</h4><p className="designer-zone__caption">{zone.caption}</p></div>
+                  <span className="designer-zone__count">{(columnLists[zone.id] || []).length}</span>
+                </div>
                 <Droppable droppableId={zone.id}>
-                  {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[180px]">
+                  {(provided, snapshot) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className={`designer-zone__body ${snapshot.isDraggingOver ? "designer-zone__body--over" : ""}`}>
                       {(columnLists[zone.id] || []).map((col, index) => (
                         <Draggable key={col.id} draggableId={col.id} index={index}>
                           {(dragProvided) => (
@@ -1075,14 +1063,10 @@ const DesignReport = () => {
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
-                              className="p-2 mb-2 rounded-lg cursor-pointer text-sm flex items-center justify-between gap-2 border"
-                              style={{
-                                background: "var(--surface-bg)",
-                                borderColor: "var(--stroke)",
-                                boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
-                              }}
+                              className="designer-field"
                             >
-                              <span className="truncate">{col.name}</span>
+                              <span className="designer-field__grip" aria-hidden="true">⠿</span>
+                              <span className="truncate flex-1">{col.name}</span>
                               {zone.id === "available" ? (
                                 <button
                                   type="button"
@@ -1090,10 +1074,10 @@ const DesignReport = () => {
                                     e.stopPropagation();
                                     handleQuickAdd(col);
                                   }}
-                                  className="ui-btn-primary !p-0 w-7 h-7 min-w-[1.75rem] rounded-lg"
+                                  className="designer-field__action designer-field__action--add"
                                   title={`Add to ${quickAddTarget}`}
                                 >
-                                  +
+                                  <PlusIcon className="h-4 w-4" />
                                 </button>
                               ) : (
                                 <button
@@ -1102,17 +1086,17 @@ const DesignReport = () => {
                                     e.stopPropagation();
                                     handleQuickRemove(zone.id, col);
                                   }}
-                                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-white font-bold shrink-0"
-                                  style={{ background: "#dc2626" }}
+                                  className="designer-field__action designer-field__action--remove"
                                   title="Remove from this zone"
                                 >
-                                  -
+                                  <XMarkIcon className="h-4 w-4" />
                                 </button>
                               )}
                             </div>
                           )}
                         </Draggable>
                       ))}
+                      {!columnLists[zone.id]?.length ? <div className="designer-zone__empty">{zone.id === "available" ? "No source fields found" : "Drop fields here"}</div> : null}
                       {provided.placeholder}
                     </div>
                   )}
