@@ -19,14 +19,23 @@ class QueryRunCsvExportView(APIView):
         run = QueryRun.objects.filter(id=run_id, tenant=tenant, user=request.user).first()
         if not run:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        if run.status != QueryRun.Status.SUCCEEDED:
+            return Response({"detail": "Only completed runs can be exported."}, status=status.HTTP_409_CONFLICT)
 
         rows = (run.preview or {}).get("rows") or []
         output = io.StringIO()
         if rows:
             writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
             writer.writeheader()
-            writer.writerows(rows)
+            for row in rows:
+                writer.writerow({key: _csv_safe(value) for key, value in row.items()})
         resp = HttpResponse(output.getvalue(), content_type="text/csv")
         resp["Content-Disposition"] = f'attachment; filename="queryrun-{run_id}.csv"'
         return resp
+
+
+def _csv_safe(value):
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
 

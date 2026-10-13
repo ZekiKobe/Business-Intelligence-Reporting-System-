@@ -13,3 +13,5 @@ export const updateReportApi = (id, reportData) =>
 export const getReportsApi = () => apiClient.get("/reports/");
 export const getReportByIdApi = (id) => apiClient.get(`/reports/${id}/`);
 export const executeSqlApi = (payload) => apiClient.post("/v1/sql/execute", payload);
+export const executeReportApi = (reportId, payload) =>
+  apiClient.post(`/v1/reports/${reportId}/execute`, payload);

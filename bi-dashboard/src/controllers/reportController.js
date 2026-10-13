@@ -6,7 +6,7 @@ import {
   updateReportApi,
   getReportByIdApi,
   getReportsApi,
-  executeSqlApi,
+  executeReportApi,
 } from "../services/reportsApi";
 
 // Create Report group
@@ -92,7 +92,7 @@ export const getAllReports = async () => {
   }
 };
 
-export const executeReportSql = async (payload) => {
-  const res = await executeSqlApi(payload);
+export const executeReportSql = async (reportId, payload) => {
+  const res = await executeReportApi(reportId, payload);
   return res.data;
 };

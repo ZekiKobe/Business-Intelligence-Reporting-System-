@@ -38,24 +38,6 @@ export const getRowValue = (row, colName) => {
   return matchedKey ? row[matchedKey] : undefined;
 };
 
-const buildSqlFromReport = (report) => {
-  const spec = report?.spec || {};
-  const connectionId = spec.connection_public_id;
-  const tableName = spec.table || report?.dataset;
-  const selectedColumns = [
-    ...(spec.main_columns || []),
-    ...(spec.header_columns || []),
-    ...(spec.aggregate_columns || []),
-    ...(spec.filter_columns || []),
-  ].filter(Boolean);
-  const uniqueColumns = Array.from(new Set(selectedColumns));
-  const selectExpr = uniqueColumns.length ? uniqueColumns.join(", ") : "*";
-  return {
-    connectionId,
-    sql: `SELECT ${selectExpr} FROM ${tableName}`,
-  };
-};
-
 /**
  * Full-width report execution (table, chart, filters, pagination).
  * @param {{ report: object, groupMap?: Record<string,string>, autoRun?: boolean, onBack?: () => void }} props
@@ -73,6 +55,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
   const [execRowLimit, setExecRowLimit] = useState(10_000);
   const [lastRowCount, setLastRowCount] = useState(null);
   const [lastRunAt, setLastRunAt] = useState(null);
+  const [lastDurationMs, setLastDurationMs] = useState(null);
   const autoRunStartedRef = useRef(false);
 
   const spec = report?.spec || {};
@@ -134,6 +117,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
     setFilterValues({});
     setLastRowCount(null);
     setLastRunAt(null);
+    setLastDurationMs(null);
     setSortConfig({ key: null, direction: "ascending" });
     setCurrentPage(1);
     setError("");
@@ -146,22 +130,16 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
     setCurrentPage(1);
     setError("");
     try {
-      const { connectionId, sql } = buildSqlFromReport(report);
-      if (!connectionId) throw new Error("Report missing data source connection.");
-      const res = await executeReportSql({
-        connection_id: connectionId,
-        sql,
-        limit: execRowLimit,
-      });
+      const res = await executeReportSql(report.id, { limit: execRowLimit });
       const loaded = res?.preview?.rows || [];
       setFetchedRows(loaded);
       setFilterValues({});
       setCurrentPage(1);
       setLastRowCount(typeof res?.row_count === "number" ? res.row_count : loaded.length);
       setLastRunAt(new Date().toLocaleString());
+      setLastDurationMs(typeof res?.duration_ms === "number" ? res.duration_ms : null);
     } catch (e) {
-      setError("Failed to execute report.");
-      console.log("[report execute] error", e);
+      setError(e?.response?.data?.detail || "Failed to execute report.");
     } finally {
       setIsLoading(false);
     }
@@ -274,6 +252,7 @@ export default function ReportExecutionView({ report, groupMap = {}, autoRun = f
               <span>· {report.dataset}</span>
               <span>· {groupMap[report.group] || report.group}</span>
               {lastRunAt ? <span>· Last run {lastRunAt}</span> : null}
+              {lastDurationMs != null ? <span>· Completed in {(lastDurationMs / 1000).toFixed(2)}s</span> : null}
               {lastRowCount != null ? (
                 <span>
                   · {lastRowCount.toLocaleString()} loaded

@@ -21,7 +21,14 @@ class QueryRun(models.Model):
     error = models.TextField(blank=True, default="")
     row_count = models.IntegerField(null=True, blank=True)
     preview = models.JSONField(blank=True, default=dict)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("tenant", "user", "-created_at"), name="queryrun_user_history_idx"),
+            models.Index(fields=("tenant", "status", "-created_at"), name="queryrun_status_history_idx"),
+        ]
 

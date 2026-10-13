@@ -25,8 +25,20 @@ class QueryRunSerializer(serializers.ModelSerializer):
             "status",
             "error",
             "row_count",
+            "duration_ms",
             "preview",
             "started_at",
             "finished_at",
             "created_at",
+        )
+
+
+class QueryRunHistorySerializer(serializers.ModelSerializer):
+    """History deliberately omits SQL text and preview data."""
+
+    class Meta:
+        model = QueryRun
+        fields = (
+            "id", "connection", "status", "error", "row_count", "duration_ms",
+            "started_at", "finished_at", "created_at",
         )
