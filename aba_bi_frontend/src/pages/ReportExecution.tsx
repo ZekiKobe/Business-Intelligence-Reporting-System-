@@ -69,6 +69,9 @@ const ReportExecutionPage = () => {
   const [showExecutionDetails, setShowExecutionDetails] = useState(false);
   const [parameterErrors, setParameterErrors] = useState<Record<string, string>>({});
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [showExecutionFilters, setShowExecutionFilters] = useState(true);
+  const [showResultFilters, setShowResultFilters] = useState(false);
+  const [showChartSettings, setShowChartSettings] = useState(false);
 
   const spec = report?.spec || {};
   const headerColumns: string[] = (spec?.header_columns || []).filter(Boolean);
@@ -243,6 +246,11 @@ const ReportExecutionPage = () => {
       setCurrentPage(1);
       setExpandedRows(new Set());
       setExecuted(true);
+      // Once a run is complete, return the vertical space to the report itself.
+      // Parameters remain one click away in the compact toolbar above.
+      setShowExecutionFilters(false);
+      setShowResultFilters(false);
+      setShowChartSettings(false);
       setExecution(res);
       console.log("[report execute]", { rowCount: res?.row_count, limit: execRowLimit });
     } catch (e: any) {
@@ -301,28 +309,37 @@ const ReportExecutionPage = () => {
 
   return (
     <PortalLayout contentMax="max-w-[88rem]">
-        <div className="pb-12">
-        <div className="mb-8">
-          <p className="portal-hero-eyebrow mb-2">Report execution</p>
-          <h1 className="font-display text-2xl md:text-3xl font-bold text-portal-text tracking-tight">
-            {location.state?.name || report?.name || "Report"}
-          </h1>
-          <p className="text-sm text-portal-muted mt-2 max-w-2xl leading-relaxed">
-            Run the saved query against your connection, refine with filters, and export results.
+        <div className="pb-6">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="portal-hero-eyebrow mb-1">Report execution</p>
+            <h1 className="font-display text-xl md:text-2xl font-bold text-portal-text tracking-tight">
+              {location.state?.name || report?.name || "Report"}
+            </h1>
+          </div>
+          <p className="text-xs text-portal-muted max-w-xl sm:text-right">
+            Run, refine, and export your report results.
           </p>
         </div>
 
-        <div className="portal-surface-card p-5 md:p-6 mb-6 border-portal-stroke">
+        <div className="portal-surface-card p-4 mb-4 border-portal-stroke">
           {filterConfigs.length > 0 && (
-            <section className="mb-5 pb-5 border-b border-portal-stroke" aria-labelledby="execution-filters-title">
-              <div className="flex items-center gap-2 mb-1">
+            <section className="mb-4 pb-4 border-b border-portal-stroke" aria-labelledby="execution-filters-title">
+              <div className="flex items-center gap-2">
                 <AdjustmentsHorizontalIcon className="h-4 w-4 text-portal-muted" />
                 <h2 id="execution-filters-title" className="font-display text-base font-semibold text-portal-text">Report filters</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowExecutionFilters((value) => !value)}
+                  className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700"
+                  aria-expanded={showExecutionFilters}
+                >
+                  {showExecutionFilters ? "Hide filters" : "Show filters"}
+                  {showExecutionFilters ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
               </div>
-              <p className="text-xs text-portal-muted mb-4">
-                Apply filters before running. Required filters must be completed; leave optional filters blank to run the whole report.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {!showExecutionFilters && <p className="mt-1 text-xs text-portal-muted">Set report parameters before running, when needed.</p>}
+              {showExecutionFilters && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                 {filterConfigs.map((config) => {
                   const value = filterValues[config.key] ?? "";
                   const fieldError = parameterErrors[config.key];
@@ -351,12 +368,12 @@ const ReportExecutionPage = () => {
                     </label>
                   );
                 })}
-              </div>
+              </div>}
             </section>
           )}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-end gap-2 sm:gap-3 flex-wrap">
             <label className="flex flex-col gap-1">
-              <span className="portal-label !mb-0">Row limit</span>
+              <span className="portal-label !mb-0">Max rows</span>
               <select
                 value={execRowLimit}
                 onChange={(e) => setExecRowLimit(Number(e.target.value))}
@@ -373,7 +390,7 @@ const ReportExecutionPage = () => {
               type="button"
               onClick={onExecute}
               disabled={loading || !report}
-              className="portal-btn-primary px-5 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-45 disabled:cursor-not-allowed"
+              className="portal-btn-primary px-4 py-2 rounded-lg font-semibold text-sm disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <Play size={16} className="inline mr-2 align-text-bottom" strokeWidth={2.25} />
               {loading ? "Running…" : "Run report"}
@@ -382,7 +399,7 @@ const ReportExecutionPage = () => {
               type="button"
               onClick={exportCSV}
               disabled={!filteredRows.length}
-              className="portal-btn-emerald-soft text-sm disabled:opacity-45 disabled:cursor-not-allowed"
+              className="portal-btn-emerald-soft !px-3 !py-2 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <FileDown size={16} />
               CSV
@@ -391,7 +408,7 @@ const ReportExecutionPage = () => {
               type="button"
               onClick={exportPDF}
               disabled={!filteredRows.length}
-              className="portal-btn-danger-soft text-sm disabled:opacity-45 disabled:cursor-not-allowed"
+              className="portal-btn-danger-soft !px-3 !py-2 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <FileText size={16} />
               PDF
@@ -422,7 +439,7 @@ const ReportExecutionPage = () => {
 
         {executed && (
           <div id="report-table" className="portal-surface-card overflow-hidden border-portal-stroke p-0">
-            <div className="p-5 border-b border-portal-stroke flex items-center justify-between flex-wrap gap-3">
+            <div className="px-4 py-3 border-b border-portal-stroke flex items-center justify-between flex-wrap gap-3">
               <h2 className="font-display text-lg font-semibold flex items-center gap-2 text-portal-text">
                 <FileText size={18} className="opacity-80" />
                 Results
@@ -438,14 +455,14 @@ const ReportExecutionPage = () => {
 
             {!!rows.length && (headerColumns.length > 0 || aggregateColumns.length > 0) && (
               <div
-                className="p-4 sm:p-5 border-b border-portal-stroke"
+                className="p-3 sm:p-4 border-b border-portal-stroke"
                 style={{ background: "color-mix(in srgb, var(--portal-bg) 70%, var(--portal-surface))" }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {headerColumns.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-                      <h3 className="text-sm font-semibold text-blue-800 mb-2">Header</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-blue-900">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-blue-800 mb-1.5">Header</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-blue-900">
                         {headerColumns.map((col) => (
                           <div key={col} className="break-words">
                             <span className="font-medium">{col}:</span>{" "}
@@ -459,9 +476,9 @@ const ReportExecutionPage = () => {
                   )}
 
                   {aggregateColumns.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                      <h3 className="text-sm font-semibold text-amber-800 mb-2">Aggregation</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-amber-900">
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-1.5">Aggregation</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-amber-900">
                         {aggregateColumns.map((col) => (
                           <div key={col} className="break-words">
                             <span className="font-medium">{col}:</span>{" "}
@@ -482,9 +499,18 @@ const ReportExecutionPage = () => {
                 className="p-3 sm:p-4 border-b border-portal-stroke"
                 style={{ background: "color-mix(in srgb, var(--portal-primary-soft) 25%, var(--portal-surface))" }}
               >
-                <div className="flex flex-wrap items-center gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <AdjustmentsHorizontalIcon className="h-4 w-4 text-portal-muted" />
                   <span className="text-sm font-semibold text-portal-text">Filter results</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowResultFilters((value) => !value)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700"
+                    aria-expanded={showResultFilters}
+                  >
+                    {showResultFilters ? "Hide" : "Refine"}
+                    {showResultFilters ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -496,7 +522,7 @@ const ReportExecutionPage = () => {
                     Clear filters
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {showResultFilters && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                   {filterColumns.map((col) => {
                     const kind = filterTypes[col] || "select";
                     const v = filterValues[col] ?? "";
@@ -577,17 +603,25 @@ const ReportExecutionPage = () => {
                       </label>
                     );
                   })}
-                </div>
+                </div>}
               </div>
             )}
 
             {chartTypeViz !== "table" && (
-              <div className="p-4 sm:p-5 border-b border-portal-stroke" style={{ background: "var(--portal-surface)" }}>
-                <p className="text-sm font-semibold text-portal-text mb-1">Chart axes</p>
-                <p className="text-xs text-portal-muted mb-3 max-w-2xl">
-                  Choose columns for this chart. Report defaults load automatically; adjust here if needed.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div className="p-3 sm:p-4 border-b border-portal-stroke" style={{ background: "var(--portal-surface)" }}>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-portal-text">Visualization</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowChartSettings((value) => !value)}
+                    className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700"
+                    aria-expanded={showChartSettings}
+                  >
+                    Chart settings
+                    {showChartSettings ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
+                </div>
+                {showChartSettings && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 mb-4">
                   <label className="flex flex-col gap-1">
                     <span className="portal-label !mb-0">Category (dimension)</span>
                     <select
@@ -626,7 +660,7 @@ const ReportExecutionPage = () => {
                       </select>
                     </label>
                   )}
-                </div>
+                </div>}
                 <ReportChart
                   chartType={chartTypeViz}
                   categoryKey={chartCategoryLocal}
