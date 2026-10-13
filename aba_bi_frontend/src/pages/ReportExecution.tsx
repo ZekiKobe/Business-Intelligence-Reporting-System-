@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { FileDown, FileText, Play, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, FileDown, FileText, Play, Info } from "lucide-react";
 import { saveAs } from "file-saver";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
@@ -40,6 +40,7 @@ const ReportExecutionPage = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   /** Simulated 0–100% while the execute request is in flight (API has no streaming progress). */
   const [executed, setExecuted] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +51,7 @@ const ReportExecutionPage = () => {
   const [execution, setExecution] = useState<any>(null);
   const [showExecutionDetails, setShowExecutionDetails] = useState(false);
   const [parameterErrors, setParameterErrors] = useState<Record<string, string>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const spec = report?.spec || {};
   const headerColumns: string[] = (spec?.header_columns || []).filter(Boolean);
@@ -145,6 +147,19 @@ const ReportExecutionPage = () => {
     setLastRowCount(null);
   }, [id]);
 
+  useEffect(() => {
+    if (!loading) {
+      setProgress(0);
+      return undefined;
+    }
+    setProgress(12);
+    const timer = window.setInterval(() => {
+      // The API is synchronous, so progress is capped until its real response arrives.
+      setProgress((value) => Math.min(92, value + Math.max(1, Math.round((92 - value) / 5))));
+    }, 350);
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
   const tableColumns = useMemo(() => {
     // BI Dashboard uses `main_columns` as the primary table view.
     if (mainColumns?.length) return mainColumns;
@@ -204,6 +219,7 @@ const ReportExecutionPage = () => {
       // Do not clear filters on re-run — previous result and filters stay until new data arrives.
       setLastRowCount(typeof res?.row_count === "number" ? res.row_count : loaded.length);
       setCurrentPage(1);
+      setExpandedRows(new Set());
       setExecuted(true);
       setExecution(res);
       console.log("[report execute]", { rowCount: res?.row_count, limit: execRowLimit });
@@ -246,6 +262,15 @@ const ReportExecutionPage = () => {
   const goToPage = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
     setCurrentPage(nextPage);
+  };
+
+  const toggleRowExpansion = (rowIndex: number) => {
+    setExpandedRows((current) => {
+      const next = new Set(current);
+      if (next.has(rowIndex)) next.delete(rowIndex);
+      else next.add(rowIndex);
+      return next;
+    });
   };
 
   return (
@@ -313,6 +338,9 @@ const ReportExecutionPage = () => {
 
           {loading && (
             <div className="mt-5 space-y-2" aria-live="polite">
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="progressbar" aria-label="Report execution progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                <div className="h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: `${progress}%`, background: "var(--portal-primary)" }} />
+              </div>
               <div className="flex justify-between text-xs text-portal-muted">
                 <span>{loading ? "Running report…" : "Complete"}</span>
               </div>
@@ -557,6 +585,7 @@ const ReportExecutionPage = () => {
               <table className="portal-pro-table">
                 <thead>
                   <tr>
+                    <th className="w-11"><span className="sr-only">Expand row</span></th>
                     {tableColumns.map((col) => (
                       <th key={col}>
                         {col}
@@ -565,15 +594,39 @@ const ReportExecutionPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedRows.map((row, idx) => (
-                    <tr key={idx}>
-                      {tableColumns.map((col) => (
-                        <td key={`${idx}-${col}`} className="whitespace-nowrap">
-                          {String(getRowValue(row as Record<string, unknown>, col) ?? "")}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {paginatedRows.map((row, idx) => {
+                    const rowIndex = (currentPage - 1) * rowsPerPage + idx;
+                    const expanded = expandedRows.has(rowIndex);
+                    const record = row as Record<string, unknown>;
+                    return (
+                      <React.Fragment key={rowIndex}>
+                        <tr className="cursor-pointer" onClick={() => toggleRowExpansion(rowIndex)} aria-expanded={expanded}>
+                          <td className="w-11 text-portal-muted">
+                            {expanded ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+                          </td>
+                          {tableColumns.map((col) => (
+                            <td key={`${rowIndex}-${col}`} className="whitespace-nowrap">
+                              {String(getRowValue(record, col) ?? "")}
+                            </td>
+                          ))}
+                        </tr>
+                        {expanded ? (
+                          <tr style={{ background: "color-mix(in srgb, #fef2f2 82%, var(--portal-surface))" }}>
+                            <td colSpan={tableColumns.length + 1} className="px-5 py-5">
+                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-3 text-sm text-portal-text">
+                                {Object.entries(record).map(([key, value]) => (
+                                  <div key={key} className="break-words">
+                                    <span className="font-semibold">{key.replace(/_/g, " ")}:</span>{" "}
+                                    <span>{String(value ?? "")}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
