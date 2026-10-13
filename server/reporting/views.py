@@ -102,6 +102,13 @@ class ReportViewSet(
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+    def perform_update(self, serializer):
+        """Keep report-group relationships tenant scoped during PUT/PATCH too."""
+        group = serializer.validated_data.get("group")
+        if group and group.tenant_id != self.get_tenant().id:
+            raise PermissionDenied("Invalid report group for this workspace.")
+        serializer.save()
+
 
 class IsTenantAdmin(permissions.BasePermission):
     def has_permission(self, request, view):

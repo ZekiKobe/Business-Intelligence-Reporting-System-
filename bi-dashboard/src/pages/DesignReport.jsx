@@ -32,6 +32,21 @@ const formatPreviewValue = (value, columnName) => {
   return text;
 };
 
+// Keep the comparison intentionally limited to properties the designer owns.
+// Unknown spec keys are retained through `loadedSpecRef` on every update.
+const designSnapshot = ({
+  reportTitle, reportId, selectedReportGroup, criteria, selectedConnection,
+  selectedTable, columnLists, aggregateMetrics, filterConfigs, chartType,
+  chartCategoryKey, chartValueKey, chartValueAggregate, chartViz,
+}) => JSON.stringify({
+  reportTitle, reportId, selectedReportGroup, criteria, selectedConnection, selectedTable,
+  header: columnLists.header.map((item) => item.name),
+  main: columnLists.main.map((item) => item.name),
+  filter: columnLists.filter.map((item) => item.name),
+  aggregateMetrics, filterConfigs, chartType, chartCategoryKey,
+  chartValueKey, chartValueAggregate, chartViz,
+});
+
 const DesignReport = () => {
   const navigate = useNavigate();
   const { reportId: editReportPk } = useParams();
@@ -75,6 +90,10 @@ const DesignReport = () => {
   const prevConnectionRef = useRef(null);
   const dragIdCounter = useRef(0);
   const loadedSpecRef = useRef({});
+  const schemaRequestRef = useRef(0);
+  const savedSnapshotRef = useRef("");
+  const currentSnapshotRef = useRef("");
+  const [isDirty, setIsDirty] = useState(false);
 
   const normalizeIdentifier = (value) =>
     String(value || "")
@@ -136,6 +155,8 @@ const DesignReport = () => {
       setLoadError("");
       if (!isEditMode) {
         loadedSpecRef.current = {};
+        savedSnapshotRef.current = "";
+        setIsDirty(false);
         setPendingSpec(null);
         setHydratingEdit(false);
       }
@@ -181,8 +202,36 @@ const DesignReport = () => {
     bootstrap();
   }, [isEditMode, editReportPk, reloadAttempt]);
 
+  const currentSnapshot = useMemo(
+    () => designSnapshot({
+      reportTitle, reportId, selectedReportGroup, criteria, selectedConnection, selectedTable,
+      columnLists, aggregateMetrics, filterConfigs, chartType, chartCategoryKey,
+      chartValueKey, chartValueAggregate, chartViz,
+    }),
+    [reportTitle, reportId, selectedReportGroup, criteria, selectedConnection, selectedTable,
+      columnLists, aggregateMetrics, filterConfigs, chartType, chartCategoryKey,
+      chartValueKey, chartValueAggregate, chartViz]
+  );
+
+  useEffect(() => {
+    currentSnapshotRef.current = currentSnapshot;
+    if (!savedSnapshotRef.current) return;
+    setIsDirty(currentSnapshot !== savedSnapshotRef.current);
+  }, [currentSnapshot]);
+
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [isDirty]);
+
   useEffect(() => {
     const loadSchema = async () => {
+      const requestId = ++schemaRequestRef.current;
       if (!selectedConnection) {
         prevConnectionRef.current = null;
         setTables([]);
@@ -201,6 +250,7 @@ const DesignReport = () => {
       setSchemaError("");
       try {
         const rows = await fetchConnectionSchema(selectedConnection);
+        if (requestId !== schemaRequestRef.current) return;
         setTables(rows || []);
         if (hydratingEdit && desiredTableForHydration) {
           const resolved = resolveSchemaTableName(rows || [], desiredTableForHydration);
@@ -211,6 +261,7 @@ const DesignReport = () => {
           setColumnLists({ available: [], header: [], main: [], filter: [] });
         }
       } catch (error) {
+        if (requestId !== schemaRequestRef.current) return;
         setTables([]);
         setColumnLists({ available: [], header: [], main: [], filter: [] });
         const detail =
@@ -220,7 +271,7 @@ const DesignReport = () => {
         setSchemaError(detail);
         console.log("[design report] schema load failed", { detail, error });
       } finally {
-        setSchemaLoading(false);
+        if (requestId === schemaRequestRef.current) setSchemaLoading(false);
       }
     };
     loadSchema();
@@ -250,11 +301,9 @@ const DesignReport = () => {
       })
       .filter(Boolean);
     if (pendingSpec) {
-      const validNames = new Set(cols.map((c) => c.name));
       const zoneItems = (names = [], zoneKey) =>
         (names || [])
           .map((name) => {
-            if (!validNames.has(name)) return null;
             dragIdCounter.current += 1;
             return { name, id: `${zoneKey}-${name}-${dragIdCounter.current}` };
           })
@@ -266,11 +315,10 @@ const DesignReport = () => {
       let nextMetrics;
       if (Array.isArray(metricsRaw) && metricsRaw.length) {
         nextMetrics = metricsRaw
-          .filter((m) => m && validNames.has(String(m.column)))
+          .filter((m) => m && (m.op === "count" || m.column))
           .map((m) => ({ column: m.column, op: m.op || "sum" }));
       } else {
         nextMetrics = (pendingSpec.aggregate_columns || [])
-          .filter((c) => validNames.has(String(c)))
           .map((c) => ({ column: c, op: "sum" }));
       }
       setAggregateMetrics(nextMetrics);
@@ -282,6 +330,21 @@ const DesignReport = () => {
     setAggregateMetrics([]);
     setColumnLists({ available: cols, header: [], main: [], filter: [] });
   }, [selectedTable, tables]);
+
+  // Establish the baseline only after all saved zones and filter metadata have
+  // been hydrated. This prevents the initial load from appearing as an edit.
+  useEffect(() => {
+    if (!isEditMode || hydratingEdit || pendingSpec || !selectedTable || savedSnapshotRef.current) return;
+    // Filter configuration normalisation runs in a sibling effect. Deferring
+    // one task lets that state settle before taking the immutable baseline.
+    const timer = window.setTimeout(() => {
+      if (!savedSnapshotRef.current) {
+        savedSnapshotRef.current = currentSnapshotRef.current;
+        setIsDirty(false);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isEditMode, hydratingEdit, pendingSpec, selectedTable, currentSnapshot]);
 
   // Filter columns are the source list; keep their saved configuration when
   // designers rearrange columns and give newly-added filters safe defaults.
@@ -403,6 +466,14 @@ const DesignReport = () => {
   };
 
   const handleSaveReport = async () => {
+    if (schemaLoading || hydratingEdit || pendingSpec) {
+      toast.info("Please wait for the saved report layout to finish loading.");
+      return;
+    }
+    if (schemaError) {
+      toast.error("The report cannot be saved while its data schema is unavailable. Retry the connection first.");
+      return;
+    }
     if (!reportId || !selectedReportGroup || !selectedConnection || !selectedTable) {
       toast.warning("Please select report group, connection and table, then fill report ID.");
       return;
@@ -463,15 +534,21 @@ const DesignReport = () => {
           chart_viz: normalizeChartViz(chartViz),
         },
       };
+      let savedReport;
       if (isEditMode) {
-        await updateReport(editReportPk, payload);
+        savedReport = await updateReport(editReportPk, payload);
         toast.success("Report updated successfully.");
       } else {
-        await createReport(payload);
+        savedReport = await createReport(payload);
         toast.success("Report design saved successfully.");
       }
+      // Keep the authoritative definition available until route transition;
+      // this also prevents a late async state change from restoring stale data.
+      loadedSpecRef.current = savedReport?.spec || payload.spec;
+      savedSnapshotRef.current = currentSnapshot;
+      setIsDirty(false);
       navigate("/reports");
-    } catch (error) {
+    } catch {
       toast.error(isEditMode ? "Failed to update report design." : "Failed to save report design.");
     } finally {
       setSaving(false);
@@ -584,8 +661,8 @@ const DesignReport = () => {
           className="mb-6 rounded-xl border p-4 text-sm flex items-start gap-3"
           style={{ borderColor: "var(--stroke)", background: "var(--brand-primary-soft)", color: "var(--surface-text)" }}
         >
-          <span className="font-semibold shrink-0">Loaded draft.</span>
-          <span className="opacity-90">Review zones and visualization, then save to publish changes.</span>
+          <span className="font-semibold shrink-0">{isDirty ? "Unsaved changes." : "Saved design loaded."}</span>
+          <span className="opacity-90">{isDirty ? "Save your updates before leaving this page." : "Review zones and visualization, then save to publish changes."}</span>
         </div>
       ) : null}
 
@@ -1050,7 +1127,7 @@ const DesignReport = () => {
           <button type="button" onClick={openPreview} className="ui-btn-secondary">
             <EyeIcon className="h-4 w-4" /> Preview
           </button>
-          <button type="button" onClick={handleSaveReport} disabled={saving} className="ui-btn-primary">
+          <button type="button" onClick={handleSaveReport} disabled={saving || schemaLoading || hydratingEdit || Boolean(schemaError)} className="ui-btn-primary">
             <PlusIcon className="h-4 w-4" /> {saving ? (isEditMode ? "Updating…" : "Saving…") : isEditMode ? "Update report" : "Save report"}
           </button>
         </div>

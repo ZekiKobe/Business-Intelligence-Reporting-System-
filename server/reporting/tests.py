@@ -123,3 +123,17 @@ class ReportingApiTests(TestCase):
         self.assertEqual(reloaded.status_code, 200)
         self.assertEqual(reloaded.data["id"], report.id)
         self.assertEqual(reloaded.data["spec"], updated_spec)
+
+    def test_update_cannot_move_a_report_to_another_tenant_group(self):
+        group = ReportGroup.objects.create(tenant=self.tenant, group_name="Finance")
+        report = Report.objects.create(tenant=self.tenant, group=group, report_id="finance-2", name="Finance")
+        other_tenant = Tenant.objects.create(name="Other", slug="other")
+        other_group = ReportGroup.objects.create(tenant=other_tenant, group_name="Other finance")
+
+        response = self.client.patch(
+            f"/api/reports/{report.id}/", {"group": str(other_group.code)}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)
+        report.refresh_from_db()
+        self.assertEqual(report.group_id, group.id)
