@@ -9,6 +9,7 @@ from .views import (
     LogoutView,
     PortalBrandingView,
     RegisterView,
+    UserDetailView,
 )
 
 
@@ -23,5 +24,6 @@ urlpatterns = [
     path("user/", CreateUserView.as_view(), name="user-create-slash"),
     path("user/me/", CurrentUserView.as_view(), name="user-me"),
     path("user/me", CurrentUserView.as_view(), name="user-me-noslash"),
+    path("user/<int:user_id>/", UserDetailView.as_view(), name="user-detail"),
 ]
 

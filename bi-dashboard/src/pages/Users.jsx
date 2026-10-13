@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import UserCreationPopup from '../components/UserCreationPopup';
 import BiPageHeader from '../components/BiPageHeader';
 import { getUsers } from '../controllers/userController';
+import { deleteUser } from '../controllers/userController';
+import { toast } from 'react-toastify';
 import { useTrackPageLoading } from '../context/LoadingBarContext';
 
 const Users = () => {
@@ -37,6 +39,18 @@ const Users = () => {
 
   const handleAddUser = () => {
     loadUsers();
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Remove ${user.name || user.username} from this workspace?`)) return;
+    try {
+      await deleteUser(user.id);
+      setUsers((current) => current.filter((entry) => entry.id !== user.id));
+      toast.success(`Removed ${user.name || user.username}`);
+    } catch (e) {
+      const detail = e?.response?.data?.detail || 'Unable to remove user';
+      toast.error(detail);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -144,6 +158,7 @@ const Users = () => {
                             {user.name}
                           </div>
                           <div className="text-xs truncate opacity-65">{user.email}</div>
+                          <div className="text-xs truncate opacity-65">Username: {user.username}</div>
                         </div>
                       </div>
                     </td>
@@ -158,7 +173,12 @@ const Users = () => {
                       <button type="button" className="ui-btn-ghost p-2 rounded-lg opacity-70" title="Edit">
                         <Edit size={16} />
                       </button>
-                      <button type="button" className="ui-btn-ghost p-2 rounded-lg text-red-600" title="Remove">
+                      <button
+                        type="button"
+                        className="ui-btn-ghost p-2 rounded-lg text-red-600"
+                        title="Remove"
+                        onClick={() => handleDeleteUser(user)}
+                      >
                         <Trash2 size={16} />
                       </button>
                     </td>

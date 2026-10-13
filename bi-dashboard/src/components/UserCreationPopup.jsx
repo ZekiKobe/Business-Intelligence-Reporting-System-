@@ -8,6 +8,7 @@ const statuses = ['Active', 'Inactive'];
 
 const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState(roles[0]);
   const [status, setStatus] = useState(statuses[0]);
@@ -18,13 +19,14 @@ const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    if(password != confirmPassword){
+    if (password !== confirmPassword) {
       toast.warning("Passwords do not match. Please check and try again.");
       return;
     }
 
     let userData = {
       name: name,
+      username: username,
       email: email,
       role: role,
       status: status,
@@ -37,6 +39,7 @@ const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
       onSave?.({
         id: created?.id || Date.now(),
         name,
+        username: created?.username || username,
         email,
         role,
         status,
@@ -44,6 +47,7 @@ const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
       });
 
       setName('');
+      setUsername('');
       setEmail('');
       setRole(roles[0]);
       setStatus(statuses[0]);
@@ -71,6 +75,15 @@ const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
             placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <input
+            type="text"
+            placeholder="Username (used to sign in)"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoComplete="username"
             className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <input

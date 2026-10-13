@@ -69,10 +69,24 @@ class MembershipSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.Serializer):
     name = serializers.CharField()
+    username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     role = serializers.ChoiceField(choices=Membership.Role.choices, required=False)
     status = serializers.CharField(required=False, default="Active")
     password = serializers.CharField()
+
+    def validate_username(self, value):
+        username = value.strip()
+        if not username:
+            raise serializers.ValidationError("Username is required")
+        if User.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError("Username already taken")
+        return username
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Email already registered")
+        return value
 
     def create(self, validated_data):
         name = validated_data["name"]
@@ -82,9 +96,8 @@ class UserCreateSerializer(serializers.Serializer):
         status = validated_data.get("status") or "Active"
         tenant: Tenant = self.context["tenant"]
 
-        username = email.split("@")[0]
         user = User.objects.create_user(
-            username=username,
+            username=validated_data["username"],
             email=email,
             password=password,
             full_name=name,

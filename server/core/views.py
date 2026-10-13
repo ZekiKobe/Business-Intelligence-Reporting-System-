@@ -64,8 +64,20 @@ class ExternalLoginView(APIView):
 
 
 class CreateUserView(APIView):
-    def get(self, request):
+    @staticmethod
+    def _require_tenant_admin(request):
         ctx = resolve_tenant_for_user(request=request, user=request.user)
+        if not ctx.membership or ctx.membership.role != Membership.Role.ADMIN:
+            return ctx, Response(
+                {"detail": "Only administrators can manage users."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return ctx, None
+
+    def get(self, request):
+        ctx, denied = self._require_tenant_admin(request)
+        if denied:
+            return denied
         memberships = (
             # pylint: disable=no-member
             Membership.objects.select_related("user")
@@ -87,7 +99,9 @@ class CreateUserView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        ctx = resolve_tenant_for_user(request=request, user=request.user)
+        ctx, denied = self._require_tenant_admin(request)
+        if denied:
+            return denied
         serializer = UserCreateSerializer(data=request.data, context={"tenant": ctx.tenant})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -100,6 +114,30 @@ class CreateUserView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class UserDetailView(APIView):
+    """Remove a user from the current tenant without affecting other tenants."""
+
+    def delete(self, request, user_id):
+        ctx, denied = CreateUserView._require_tenant_admin(request)
+        if denied:
+            return denied
+        if user_id == request.user.id:
+            return Response(
+                {"detail": "You cannot remove your own account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        membership = Membership.objects.filter(tenant=ctx.tenant, user_id=user_id).first()
+        if not membership:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = membership.user
+        membership.delete()
+        if not user.memberships.exists():
+            user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CurrentUserView(APIView):

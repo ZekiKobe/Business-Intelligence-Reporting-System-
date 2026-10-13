@@ -1,4 +1,4 @@
-import { createUserApi, getMeApi, getUsersApi } from "../services/userApi";
+import { createUserApi, deleteUserApi, getMeApi, getUsersApi } from "../services/userApi";
 
 export const createUser =  async(userData) => {
     try {
@@ -27,6 +27,15 @@ export const getMe = async () => {
     return res.data || null;
   } catch (error) {
     console.log("Error fetching current user", error);
+    throw error;
+  }
+};
+
+export const deleteUser = async (userId) => {
+  try {
+    await deleteUserApi(userId);
+  } catch (error) {
+    console.log("Error deleting user", error);
     throw error;
   }
 };

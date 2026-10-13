@@ -50,4 +50,34 @@ class ExternalLoginTests(TestCase):
         self.assertEqual(login.status_code, 200)
         self.assertIn("sessionId", login.data)
 
+    def test_admin_can_create_and_remove_viewer_with_username_login(self):
+        self.client.force_authenticate(user=self.user)
+        created = self.client.post(
+            "/api/user",
+            {
+                "name": "Viewer User",
+                "username": "reportviewer",
+                "email": "viewer@example.com",
+                "password": "pass12345",
+                "role": "Viewer",
+                "status": "Active",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["username"], "reportviewer")
+
+        self.client.force_authenticate(user=None)
+        login = self.client.post(
+            "/api/auth/login/",
+            {"username": "reportviewer", "password": "pass12345"},
+            format="json",
+        )
+        self.assertEqual(login.status_code, 200)
+
+        self.client.force_authenticate(user=self.user)
+        removed = self.client.delete(f"/api/user/{created.data['id']}/")
+        self.assertEqual(removed.status_code, 204)
+        self.assertFalse(User.objects.filter(id=created.data["id"]).exists())
+
 # Create your tests here.
