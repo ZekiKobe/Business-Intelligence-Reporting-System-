@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, FileBarChart } from "lucide-react";
 import PortalLayout from "../layouts/PortalLayout";
-import { useBranding } from "../context/BrandingContext";
 import { getReportGroups } from "../services/api";
 import { chartTypeLabel } from "../utils/reportChartData";
 import { useCurrentUser } from "../context/CurrentUserContext";
@@ -28,7 +27,6 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const { branding } = useBranding();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
 
@@ -69,41 +67,13 @@ const Home: React.FC = () => {
 
   return (
     <PortalLayout contentMax="max-w-6xl">
-          <div className="mb-6 md:mb-10">
-            <p className="portal-hero-eyebrow mb-2">{user?.fullName || user?.username ? `Welcome back, ${user?.fullName || user?.username}` : branding.companyName}</p>
-            <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-portal-text tracking-tight leading-tight">
-              {branding.productName}
-            </h1>
-            <p className="text-portal-muted text-sm md:text-base mt-3 max-w-2xl leading-relaxed">
-              {branding.tagline}
-            </p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <span className="portal-badge">
-                {groups.reduce((acc, g) => acc + (g.reports?.length || 0), 0)} reports
-              </span>
-              <span
-                className="portal-badge"
-                style={{
-                  background: "color-mix(in srgb, var(--portal-accent-soft) 65%, transparent)",
-                  color: "var(--portal-accent)",
-                  borderColor: "color-mix(in srgb, var(--portal-accent) 25%, transparent)",
-                }}
-              >
-                Viewer portal
-              </span>
-            </div>
-          </div>
-          <div className="portal-surface-card p-5 md:p-8 border-portal-stroke">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-5 md:mb-7 pb-5 border-b border-portal-stroke">
+          <section className="rounded-2xl border border-portal-stroke bg-portal-surface shadow-[0_10px_32px_-24px_rgba(15,23,42,0.45)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-5 py-4 md:px-6 border-b border-portal-stroke">
               <div>
-                <h2 className="font-display text-xl md:text-2xl font-semibold text-portal-text tracking-tight">
-                  Available reports
-                </h2>
-                <p className="text-sm text-portal-muted mt-1 max-w-lg">
-                  Run saved definitions against your data connection, then export from the execution screen.
-                </p>
+                <div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-xl font-bold text-portal-text tracking-tight">Reports</h1><span className="portal-badge">{groups.reduce((acc, group) => acc + (group.reports?.length || 0), 0)} available</span></div>
+                <p className="mt-1 text-sm text-portal-muted">{user?.fullName || user?.username ? `Welcome back, ${user.fullName || user.username}. Choose a report to run.` : "Choose a report to run or export."}</p>
               </div>
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-72 shrink-0">
                 <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-portal-muted" aria-hidden />
                 <input
                   type="search"
@@ -116,8 +86,9 @@ const Home: React.FC = () => {
               </div>
             </div>
 
+            <div className="p-3 md:p-4">
             {loading ? (
-              <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Loading reports">
+              <div className="space-y-3 animate-pulse p-2" aria-busy="true" aria-label="Loading reports">
                 <div className="h-4 bg-portal-stroke/50 rounded-lg w-1/3 max-w-xs" />
                 <div className="h-24 bg-portal-stroke/40 rounded-xl" />
                 <div className="h-24 bg-portal-stroke/40 rounded-xl w-5/6" />
@@ -137,25 +108,22 @@ const Home: React.FC = () => {
                 <p className="mt-1 text-sm text-portal-muted">Try a different report or group name.</p>
               </div>
             ) : (
-              <div className="space-y-5">
-                {query && <p className="text-xs font-semibold uppercase tracking-wider text-portal-muted">{visibleReportCount} matching report{visibleReportCount === 1 ? "" : "s"}</p>}
+              <div className="space-y-3">
+                {query && <p className="px-1 text-xs font-semibold uppercase tracking-wider text-portal-muted">{visibleReportCount} matching report{visibleReportCount === 1 ? "" : "s"}</p>}
                 {visibleGroups.map((group) => (
                   <div
                     key={group.code}
-                    className="rounded-2xl overflow-hidden border border-portal-stroke bg-portal-surface shadow-md hover:shadow-lg transition-shadow duration-200"
+                    className="overflow-hidden rounded-xl border border-portal-stroke bg-portal-surface"
                   >
                     <div
-                      className="px-4 py-3.5 md:px-5 border-b border-portal-stroke"
-                      style={{
-                        background:
-                          "linear-gradient(105deg, color-mix(in srgb, var(--portal-primary-soft) 85%, transparent) 0%, color-mix(in srgb, var(--portal-accent-soft) 35%, var(--portal-surface)) 100%)",
-                      }}
+                      className="flex items-center justify-between px-4 py-2.5 border-b border-portal-stroke"
+                      style={{ background: "color-mix(in srgb, var(--portal-bg) 58%, var(--portal-surface))" }}
                     >
-                      <h3 className="text-sm md:text-base font-semibold text-portal-text tracking-tight">
+                      <h3 className="text-sm font-semibold text-portal-text tracking-tight">
                         {group.group_name}
                       </h3>
                     </div>
-                    <div className="p-3 md:p-4 space-y-2">
+                    <div className="p-2 space-y-1.5">
                       {(group.reports || []).length === 0 ? (
                         <p className="text-xs text-portal-muted">No reports in this group.</p>
                       ) : (
@@ -166,9 +134,9 @@ const Home: React.FC = () => {
                           return (
                           <div
                             key={report.id}
-                            className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-portal-stroke/70 hover:border-primary-500/35 hover:bg-[var(--portal-primary-soft)] transition-all duration-150"
+                            className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-transparent hover:border-portal-stroke hover:bg-[var(--portal-primary-soft)] transition-all duration-150"
                             style={{
-                              background: "color-mix(in srgb, var(--portal-bg) 38%, var(--portal-surface))",
+                              background: "color-mix(in srgb, var(--portal-bg) 35%, var(--portal-surface))",
                             }}
                           >
                             <div className="min-w-0 flex items-center gap-2 flex-wrap">
@@ -189,7 +157,7 @@ const Home: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => navigate(`/report/${report.id}`, { state: { name: report.name } })}
-                              className="shrink-0 px-4 py-2.5 text-xs font-semibold rounded-xl portal-btn-primary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2"
+                            className="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg portal-btn-primary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2"
                             >
                               Run report
                             </button>
@@ -202,7 +170,8 @@ const Home: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          </section>
     </PortalLayout>
   );
 };

@@ -5,7 +5,7 @@ import Home from "../pages/Home";
 import ReportExecution from "../pages/ReportExecution";
 import ForgotPassword from "../pages/ForgotPassword";
 import HelpSupportPage from "../pages/HelpSupportPage";
-import ProfilePage from "../pages/ProfilePage";
+import ProfilePage from "../pages/Profile";
 import ChangePasswordPage from "../pages/ChangePasswordPage";
 import Settings from "../pages/Settings";
 
