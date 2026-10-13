@@ -2,9 +2,9 @@ import { Plus, Filter, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-re
 import { useEffect, useMemo, useState } from 'react';
 import UserCreationPopup from '../components/UserCreationPopup';
 import BiPageHeader from '../components/BiPageHeader';
-import { getUsers } from '../controllers/userController';
-import { deleteUser } from '../controllers/userController';
+import { deleteUser, getUsers } from '../controllers/userController';
 import { toast } from 'react-toastify';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useTrackPageLoading } from '../context/LoadingBarContext';
 
 const Users = () => {
@@ -16,6 +16,8 @@ const Users = () => {
   const [search, setSearch] = useState('');
 
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [userToRemove, setUserToRemove] = useState(null);
+  const [removing, setRemoving] = useState(false);
 
   useTrackPageLoading(loading);
 
@@ -42,14 +44,18 @@ const Users = () => {
   };
 
   const handleDeleteUser = async (user) => {
-    if (!window.confirm(`Remove ${user.name || user.username} from this workspace?`)) return;
+    if (!user) return;
     try {
+      setRemoving(true);
       await deleteUser(user.id);
       setUsers((current) => current.filter((entry) => entry.id !== user.id));
       toast.success(`Removed ${user.name || user.username}`);
+      setUserToRemove(null);
     } catch (e) {
       const detail = e?.response?.data?.detail || 'Unable to remove user';
       toast.error(detail);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -177,7 +183,7 @@ const Users = () => {
                         type="button"
                         className="ui-btn-ghost p-2 rounded-lg text-red-600"
                         title="Remove"
-                        onClick={() => handleDeleteUser(user)}
+                        onClick={() => setUserToRemove(user)}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -226,6 +232,15 @@ const Users = () => {
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}
         onSave={handleAddUser}
+      />
+      <ConfirmDialog
+        isOpen={Boolean(userToRemove)}
+        onClose={() => !removing && setUserToRemove(null)}
+        onConfirm={() => handleDeleteUser(userToRemove)}
+        loading={removing}
+        title="Remove workspace user?"
+        description={userToRemove ? `${userToRemove.name || userToRemove.username} will lose access to this workspace and its reports.` : ''}
+        confirmLabel="Remove user"
       />
     </div>
   );

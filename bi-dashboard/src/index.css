@@ -293,6 +293,71 @@ body {
   color: var(--surface-text);
 }
 
+.ui-btn--danger {
+  color: #fff;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.24);
+}
+
+.ui-btn--danger:hover:not(:disabled) {
+  box-shadow: 0 6px 22px rgba(220, 38, 38, 0.34);
+}
+
+.ui-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(5px);
+  animation: ui-modal-fade 0.16s ease-out;
+}
+
+.ui-modal {
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--stroke);
+  border-radius: 1.25rem;
+  background: var(--surface-bg);
+  color: var(--surface-text);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.32);
+  outline: none;
+  animation: ui-modal-enter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ui-modal--md { max-width: 32rem; }
+.ui-modal--lg { max-width: 44rem; }
+
+.ui-modal__header,
+.ui-modal__footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.ui-modal__header { justify-content: space-between; border-bottom: 1px solid var(--stroke); }
+.ui-modal__footer { justify-content: flex-end; border-top: 1px solid var(--stroke); background: color-mix(in srgb, var(--app-bg) 55%, var(--surface-bg)); }
+.ui-modal__body { padding: 1.35rem 1.5rem; }
+.ui-modal__title { margin: 0; font-family: var(--font-display); font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
+.ui-modal__description { margin: 0.3rem 0 0; font-size: 0.875rem; line-height: 1.4; color: var(--surface-muted); }
+.ui-modal__close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 2.25rem; height: 2.25rem; border: 0; border-radius: 0.7rem; cursor: pointer; color: var(--surface-muted); background: transparent; }
+.ui-modal__close:hover:not(:disabled) { color: var(--surface-text); background: var(--surface-hover); }
+.ui-confirm-icon { display: inline-flex; align-items: center; justify-content: center; width: 2.8rem; height: 2.8rem; margin-bottom: 0.9rem; border-radius: 0.9rem; }
+.ui-confirm-icon--danger { color: #dc2626; background: var(--danger-soft); }
+
+@keyframes ui-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-modal-enter { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+@media (max-width: 640px) {
+  .ui-modal__header, .ui-modal__footer { padding: 1rem 1.15rem; }
+  .ui-modal__body { padding: 1.15rem; }
+}
+
 .ui-kpi {
   background: var(--surface-bg);
   border-radius: var(--radius-xl);

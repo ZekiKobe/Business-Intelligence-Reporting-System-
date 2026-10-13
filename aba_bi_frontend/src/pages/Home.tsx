@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search, FileBarChart } from "lucide-react";
 import PortalLayout from "../layouts/PortalLayout";
 import { useBranding } from "../context/BrandingContext";
 import { getReportGroups } from "../services/api";
@@ -25,6 +26,7 @@ const Home: React.FC = () => {
   const [groups, setGroups] = useState<ReportGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
   const { branding } = useBranding();
   const navigate = useNavigate();
 
@@ -44,6 +46,24 @@ const Home: React.FC = () => {
     };
     loadGroups();
   }, []);
+
+  const visibleGroups = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return groups;
+    return groups
+      .map((group) => {
+        const groupMatches = group.group_name.toLowerCase().includes(term);
+        return {
+          ...group,
+          reports: groupMatches
+            ? group.reports || []
+            : (group.reports || []).filter((report) => report.name.toLowerCase().includes(term)),
+        };
+      })
+      .filter((group) => group.reports.length > 0);
+  }, [groups, query]);
+
+  const visibleReportCount = visibleGroups.reduce((total, group) => total + (group.reports?.length || 0), 0);
 
   return (
     <PortalLayout contentMax="max-w-6xl">
@@ -81,6 +101,17 @@ const Home: React.FC = () => {
                   Run saved definitions against your data connection, then export from the execution screen.
                 </p>
               </div>
+              <div className="relative w-full sm:w-72">
+                <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-portal-muted" aria-hidden />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search reports"
+                  className="portal-input pl-10 py-2.5"
+                  aria-label="Search reports"
+                />
+              </div>
             </div>
 
             {loading ? (
@@ -95,9 +126,18 @@ const Home: React.FC = () => {
               <p className="text-sm text-portal-muted max-w-lg leading-relaxed">
                 No reports found. Create and design reports in BI Dashboard first.
               </p>
+            ) : visibleGroups.length === 0 ? (
+              <div className="py-10 text-center">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--portal-primary-soft)] text-primary-700">
+                  <Search size={20} />
+                </div>
+                <p className="font-semibold text-portal-text">No matching reports</p>
+                <p className="mt-1 text-sm text-portal-muted">Try a different report or group name.</p>
+              </div>
             ) : (
               <div className="space-y-5">
-                {groups.map((group) => (
+                {query && <p className="text-xs font-semibold uppercase tracking-wider text-portal-muted">{visibleReportCount} matching report{visibleReportCount === 1 ? "" : "s"}</p>}
+                {visibleGroups.map((group) => (
                   <div
                     key={group.code}
                     className="rounded-2xl overflow-hidden border border-portal-stroke bg-portal-surface shadow-md hover:shadow-lg transition-shadow duration-200"
@@ -130,6 +170,9 @@ const Home: React.FC = () => {
                             }}
                           >
                             <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--portal-primary-soft)] text-primary-700">
+                                <FileBarChart size={15} />
+                              </span>
                               <span className="text-sm text-portal-text font-medium">{report.name}</span>
                               <span
                                 className={

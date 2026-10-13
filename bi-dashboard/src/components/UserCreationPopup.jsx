@@ -1,138 +1,68 @@
-import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
-import { toast } from 'react-toastify';
-import {createUser} from '../controllers/userController';
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { toast } from "react-toastify";
+import { createUser } from "../controllers/userController";
+import Modal from "./Modal";
 
-const roles = ['Admin', 'Editor', 'Viewer'];
-const statuses = ['Active', 'Inactive'];
+const roles = ["Admin", "Editor", "Viewer"];
+const statuses = ["Active", "Inactive"];
 
 const UserCreationPopup = ({ isOpen, onClose, onSave }) => {
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState(roles[0]);
   const [status, setStatus] = useState(statuses[0]);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
 
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-
+  const handleSave = async (event) => {
+    event.preventDefault();
     if (password !== confirmPassword) {
       toast.warning("Passwords do not match. Please check and try again.");
       return;
     }
-
-    let userData = {
-      name: name,
-      username: username,
-      email: email,
-      role: role,
-      status: status,
-      password: password,
-    }
-
     try {
-      const created = await createUser(userData);
+      setSaving(true);
+      const created = await createUser({ name, username, email, role, status, password });
       toast.success(`User ${name} created successfully`);
-      onSave?.({
-        id: created?.id || Date.now(),
-        name,
-        username: created?.username || username,
-        email,
-        role,
-        status,
-        joinDate: new Date().toISOString().slice(0, 10),
-      });
-
-      setName('');
-      setUsername('');
-      setEmail('');
-      setRole(roles[0]);
-      setStatus(statuses[0]);
-      setPassword('');
-      setConfirmPassword('');
+      onSave?.(created);
+      setName(""); setUsername(""); setEmail(""); setRole(roles[0]); setStatus(statuses[0]);
+      setPassword(""); setConfirmPassword("");
       onClose?.();
     } catch (error) {
-      const detail = error?.response?.data?.detail || error?.message || "Error creating user";
+      const payload = error?.response?.data;
+      const detail = payload?.detail || payload?.username?.[0] || payload?.email?.[0] || error?.message || "Error creating user";
       toast.error(typeof detail === "string" ? detail : "Error creating user");
+    } finally {
+      setSaving(false);
     }
   };
-    if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-10 z-50 overflow-auto">
-      <div className="bg-white rounded-lg shadow-lg w-96 p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
-          <X size={20} />
-        </button>
-        <h2 className="text-2xl font-bold mb-4">Create New User</h2>
-
-        <div className="flex flex-col gap-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="text"
-            placeholder="Username (used to sign in)"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {roles.map(r => <option key={r}>{r}</option>)}
-          </select>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {statuses.map(s => <option key={s}>{s}</option>)}
-          </select>
-           <input
-            type="password"
-            placeholder="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-           <input
-            type="password"
-            placeholder="Confirm password here..."
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeDisabled={saving}
+      title="Create workspace user"
+      description="Choose a unique username. Viewers use it with their password to sign in to the report portal."
+      footer={<><button type="button" onClick={onClose} className="ui-btn-secondary" disabled={saving}>Cancel</button><button type="submit" form="create-user-form" className="ui-btn-primary" disabled={saving}><Plus size={16} /> {saving ? "Creating…" : "Create user"}</button></>}
+    >
+      <form id="create-user-form" onSubmit={handleSave} className="flex flex-col gap-4">
+        <label><span className="ui-label">Full name</span><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="ui-input" required /></label>
+        <label><span className="ui-label">Username</span><input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="ui-input" autoComplete="username" required /><span className="mt-1 block text-xs" style={{ color: "var(--surface-muted)" }}>This is the viewer’s sign-in name.</span></label>
+        <label><span className="ui-label">Email address</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="ui-input" required /></label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label><span className="ui-label">Role</span><select value={role} onChange={(e) => setRole(e.target.value)} className="ui-select">{roles.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label><span className="ui-label">Account status</span><select value={status} onChange={(e) => setStatus(e.target.value)} className="ui-select">{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
         </div>
-
-        <div className="flex justify-end gap-4 mt-6">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center">
-            <Plus size={16} className="mr-2" /> Save
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label><span className="ui-label">Password</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="ui-input" autoComplete="new-password" minLength={8} required /></label>
+          <label><span className="ui-label">Confirm password</span><input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="ui-input" autoComplete="new-password" minLength={8} required /></label>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };
 
