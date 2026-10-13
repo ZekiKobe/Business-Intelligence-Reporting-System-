@@ -1,0 +1,21 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+*.venv/
+
+# Bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# Distribution / builds
+build/
+dist/
+*.egg-info/
