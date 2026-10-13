@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   MagnifyingGlassIcon,
   PlayIcon,
@@ -14,10 +14,11 @@ import BiPageHeader from "../components/BiPageHeader";
 
 const ViewReportPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [groupMap, setGroupMap] = useState({});
   const [selectedReport, setSelectedReport] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
   const [filterGroup, setFilterGroup] = useState("All");
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,6 +43,10 @@ const ViewReportPage = () => {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get("search") || "");
+  }, [searchParams]);
 
   const filteredReports = reports.filter((report) => {
     const matchesSearch =

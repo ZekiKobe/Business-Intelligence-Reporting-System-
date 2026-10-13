@@ -1,13 +1,31 @@
 import { Menu, Search, ChevronDown, UserPlus, LogOut, Lock } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useBranding } from "../context/BrandingContext";
 import { logoutApi } from "../services/authApi";
 
 const Header = ({ sidebarOpen, setSidebarOpen, mobileSidebarOpen, setMobileSidebarOpen }) => {
   const [userDropdown, setUserDropdown] = useState(false);
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const { branding } = useBranding();
+
+  const pageNames = {
+    "/dashboard": "Operations overview",
+    "/reports": "Reports",
+    "/report-groups": "Report groups",
+    "/data-sources": "Data sources",
+    "/reports/design": "Report designer",
+    "/users": "Workspace users",
+    "/user/access": "Report access",
+  };
+  const pageName = Object.entries(pageNames).find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`))?.[1] || "Workspace";
+  const submitSearch = (event) => {
+    event.preventDefault();
+    const term = search.trim();
+    navigate(term ? `/reports?search=${encodeURIComponent(term)}` : "/reports");
+  };
 
   return (
     <header
@@ -34,11 +52,11 @@ const Header = ({ sidebarOpen, setSidebarOpen, mobileSidebarOpen, setMobileSideb
         </button>
         <div className="hidden md:block mr-6 min-w-0">
           <p className="font-display text-sm font-semibold truncate" style={{ color: "var(--surface-text)" }}>
-            {branding.companyName}
+            {pageName}
           </p>
-          <p className="text-xs truncate opacity-70 max-w-md">{branding.tagline}</p>
+          <p className="text-xs truncate opacity-70 max-w-md">{branding.productName}</p>
         </div>
-        <div className="relative hidden md:block w-56 lg:w-80 max-w-full">
+        <form onSubmit={submitSearch} className="relative hidden md:block w-56 lg:w-80 max-w-full">
           <Search
             className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
             size={18}
@@ -46,6 +64,9 @@ const Header = ({ sidebarOpen, setSidebarOpen, mobileSidebarOpen, setMobileSideb
           />
           <input
             type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search report catalog"
             placeholder="Search reports, groups…"
             className="ui-input pl-10 py-2.5 text-sm"
             style={{
@@ -53,7 +74,7 @@ const Header = ({ sidebarOpen, setSidebarOpen, mobileSidebarOpen, setMobileSideb
               borderColor: "var(--stroke)",
             }}
           />
-        </div>
+        </form>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">

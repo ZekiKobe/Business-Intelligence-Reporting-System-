@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { FileDown, FileText, Play } from "lucide-react";
 import { saveAs } from "file-saver";
@@ -41,10 +41,8 @@ const ReportExecutionPage = () => {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   /** Simulated 0–100% while the execute request is in flight (API has no streaming progress). */
-  const [progressPercent, setProgressPercent] = useState(0);
   const [executed, setExecuted] = useState(false);
   const [error, setError] = useState("");
-  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [execRowLimit, setExecRowLimit] = useState(10_000);
@@ -104,15 +102,6 @@ const ReportExecutionPage = () => {
     setLastRowCount(null);
   }, [id]);
 
-  useEffect(() => {
-    return () => {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
-    };
-  }, []);
-
   const tableColumns = useMemo(() => {
     // BI Dashboard uses `main_columns` as the primary table view.
     if (mainColumns?.length) return mainColumns;
@@ -163,19 +152,8 @@ const ReportExecutionPage = () => {
 
   const onExecute = async () => {
     if (!report) return;
-    if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
     setLoading(true);
     setError("");
-    setProgressPercent(0);
-    progressTimerRef.current = setInterval(() => {
-      setProgressPercent((p) => {
-        if (p >= 92) return p;
-        return Math.min(92, p + 3 + Math.random() * 5);
-      });
-    }, 220);
 
     try {
       const { connectionId, sql } = buildSqlFromSpec(report);
@@ -198,18 +176,12 @@ const ReportExecutionPage = () => {
       setLastRowCount(typeof res?.row_count === "number" ? res.row_count : loaded.length);
       setCurrentPage(1);
       setExecuted(true);
-      setProgressPercent(100);
       console.log("[report execute]", { rowCount: res?.row_count, limit: execRowLimit });
     } catch (e: any) {
       setError(e?.response?.data?.detail || e?.message || "Execution failed.");
       console.log("[report execute] error", e);
     } finally {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
       setLoading(false);
-      window.setTimeout(() => setProgressPercent(0), 500);
     }
   };
 
@@ -309,27 +281,10 @@ const ReportExecutionPage = () => {
             </p>
           )}
 
-          {(loading || progressPercent > 0) && (
+          {loading && (
             <div className="mt-5 space-y-2" aria-live="polite">
               <div className="flex justify-between text-xs text-portal-muted">
                 <span>{loading ? "Running report…" : "Complete"}</span>
-                <span className="tabular-nums font-semibold text-portal-text">{Math.round(Math.min(100, progressPercent))}%</span>
-              </div>
-              <div
-                className="h-2.5 rounded-full overflow-hidden border border-portal-stroke"
-                style={{ background: "color-mix(in srgb, var(--portal-bg) 65%, var(--portal-surface))" }}
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(Math.min(100, progressPercent))}
-              >
-                <div
-                  className="h-full rounded-full transition-[width] duration-200 ease-out"
-                  style={{
-                    width: `${Math.min(100, progressPercent)}%`,
-                    background: "linear-gradient(90deg, var(--portal-primary), var(--portal-accent))",
-                  }}
-                />
               </div>
             </div>
           )}

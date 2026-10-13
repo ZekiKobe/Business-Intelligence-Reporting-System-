@@ -18,23 +18,6 @@ import { getUsers } from "../controllers/userController";
 import BiPageHeader from "../components/BiPageHeader";
 import PageLoadingSpinner from "../components/PageLoadingSpinner";
 
-const KpiSparkline = ({ stroke }) => {
-  const c = stroke || "var(--brand-primary)";
-  return (
-    <svg className="bi-sparkline mt-2" viewBox="0 0 80 28" aria-hidden>
-      <path
-        d="M2 22 L14 14 L26 18 L40 6 L52 12 L66 8 L78 16"
-        fill="none"
-        stroke={c}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.9"
-      />
-    </svg>
-  );
-};
-
 const Dashboard = () => {
   const [allReports, setAllReports] = useState([]);
   const [users, setUsers] = useState([]);
@@ -96,7 +79,6 @@ const Dashboard = () => {
               <p className="font-display text-2xl md:text-3xl font-bold mt-1 tabular-nums" style={{ color: "var(--surface-text)" }}>
                 {allReports.length}
               </p>
-              <KpiSparkline stroke="var(--brand-primary)" />
             </div>
             <div className="ui-kpi-icon shrink-0" style={{ background: "var(--brand-primary-soft)", color: "var(--brand-primary)" }}>
               <FileText size={22} strokeWidth={2} />
@@ -112,7 +94,6 @@ const Dashboard = () => {
               <p className="font-display text-2xl md:text-3xl font-bold mt-1 tabular-nums" style={{ color: "var(--surface-text)" }}>
                 {activeUsers}
               </p>
-              <KpiSparkline stroke="#059669" />
             </div>
             <div className="ui-kpi-icon shrink-0 bg-emerald-500/15 text-emerald-700">
               <UsersIcon size={22} strokeWidth={2} />
@@ -128,7 +109,6 @@ const Dashboard = () => {
               <p className="font-display text-2xl md:text-3xl font-bold mt-1 tabular-nums" style={{ color: "var(--surface-text)" }}>
                 {groups.length}
               </p>
-              <KpiSparkline stroke="#7c3aed" />
             </div>
             <div className="ui-kpi-icon shrink-0 bg-violet-500/15 text-violet-700">
               <BarChart3 size={22} strokeWidth={2} />
@@ -144,7 +124,6 @@ const Dashboard = () => {
               <p className="font-display text-2xl md:text-3xl font-bold mt-1 tabular-nums" style={{ color: "var(--surface-text)" }}>
                 {viewerCount}
               </p>
-              <KpiSparkline stroke="#d97706" />
             </div>
             <div className="ui-kpi-icon shrink-0 bg-amber-500/15 text-amber-800">
               <Shield size={22} strokeWidth={2} />
