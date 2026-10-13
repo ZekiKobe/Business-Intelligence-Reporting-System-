@@ -55,7 +55,13 @@ const ReportExecutionPage = () => {
   const headerColumns: string[] = (spec?.header_columns || []).filter(Boolean);
   const mainColumns: string[] = (spec?.main_columns || []).filter(Boolean);
   const aggregateColumns: string[] = (spec?.aggregate_columns || []).filter(Boolean);
-  const filterColumns: string[] = (spec?.filter_columns || []).filter(Boolean);
+  // Keep derived metadata referentially stable.  These values are dependencies
+  // of effects that initialize defaults; recreating the array on every render
+  // caused that effect to continuously set state.
+  const filterColumns = useMemo<string[]>(
+    () => (spec?.filter_columns || []).filter(Boolean),
+    [spec?.filter_columns]
+  );
   const filterColumnTypesMap = spec?.filter_column_types as Record<string, string> | undefined;
   const filterConfigs = useMemo(() => {
     type SavedFilterConfig = {
