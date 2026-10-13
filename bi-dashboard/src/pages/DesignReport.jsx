@@ -37,6 +37,8 @@ const DesignReport = () => {
   const { reportId: editReportPk } = useParams();
   const isEditMode = Boolean(editReportPk);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadAttempt, setReloadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [connections, setConnections] = useState([]);
   const [tables, setTables] = useState([]);
@@ -72,6 +74,7 @@ const DesignReport = () => {
   const [chartViz, setChartViz] = useState(() => normalizeChartViz());
   const prevConnectionRef = useRef(null);
   const dragIdCounter = useRef(0);
+  const loadedSpecRef = useRef({});
 
   const normalizeIdentifier = (value) =>
     String(value || "")
@@ -130,13 +133,23 @@ const DesignReport = () => {
   useEffect(() => {
     const bootstrap = async () => {
       setLoading(true);
+      setLoadError("");
+      if (!isEditMode) {
+        loadedSpecRef.current = {};
+        setPendingSpec(null);
+        setHydratingEdit(false);
+      }
       try {
         const [groups, conns] = await Promise.all([fetchReportGroups(), fetchConnections()]);
         setReportGroups(groups || []);
         setConnections(conns || []);
         if (isEditMode) {
           const existing = await getReportById(editReportPk);
+          if (!existing) throw new Error("Report was not found.");
           const existingSpec = existing?.spec || {};
+          // Keep unedited/unknown definition fields intact on update. The
+          // designer only replaces the properties it actively manages.
+          loadedSpecRef.current = existingSpec;
           setReportTitle(existing?.name || "");
           setReportId(existing?.report_id || "");
           setSelectedReportGroup(existing?.group || "");
@@ -155,6 +168,9 @@ const DesignReport = () => {
           setFilterConfigs(Array.isArray(existingSpec.filter_configs) ? existingSpec.filter_configs : []);
         }
       } catch (error) {
+        setLoadError(
+          error?.response?.data?.detail || error?.message || "The report design could not be loaded."
+        );
         toast.error(
           isEditMode ? "Failed to load report for editing." : "Failed to load report groups or connections."
         );
@@ -163,7 +179,7 @@ const DesignReport = () => {
       }
     };
     bootstrap();
-  }, [isEditMode, editReportPk]);
+  }, [isEditMode, editReportPk, reloadAttempt]);
 
   useEffect(() => {
     const loadSchema = async () => {
@@ -208,7 +224,10 @@ const DesignReport = () => {
       }
     };
     loadSchema();
-  }, [selectedConnection, desiredTableForHydration, hydratingEdit]);
+  // Hydration state is intentionally not a dependency. Including it caused a
+  // second schema request after the saved zones were restored; that request
+  // changed `tables` and reset the designer to blank.
+  }, [selectedConnection]);
 
   useEffect(() => {
     if (!selectedTable) {
@@ -417,6 +436,7 @@ const DesignReport = () => {
         dataset: selectedTable,
         criteria,
         spec: {
+          ...loadedSpecRef.current,
           connection_public_id: selectedConnection,
           table: selectedTable,
           header_columns: headerCols,
@@ -512,6 +532,21 @@ const DesignReport = () => {
 
   if (loading) {
     return <PageLoadingSpinner minHeight="min-h-screen" label="Loading report designer…" />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="ui-shell max-w-2xl mx-auto py-12">
+        <div className="surface-card p-7 border" style={{ borderColor: "var(--stroke)" }}>
+          <p className="text-sm font-semibold text-red-700">Unable to load this report design</p>
+          <p className="text-sm mt-2" style={{ color: "var(--surface-muted)" }}>{loadError}</p>
+          <div className="flex gap-3 mt-6">
+            <button type="button" className="ui-btn-primary" onClick={() => setReloadAttempt((value) => value + 1)}>Try again</button>
+            <button type="button" className="ui-btn-secondary" onClick={() => navigate("/reports")}>Back to reports</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const zoneStyles = {

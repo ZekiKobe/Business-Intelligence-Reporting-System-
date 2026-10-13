@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from core.models import Membership, Tenant
-from reporting.models import ReportGroup, UserReportGroupAccess
+from reporting.models import Report, ReportGroup, UserReportGroupAccess
 
 
 User = get_user_model()
@@ -88,3 +88,38 @@ class ReportingApiTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 403)
+
+    def test_editing_report_updates_same_record_and_round_trips_full_spec(self):
+        group = ReportGroup.objects.create(tenant=self.tenant, group_name="Finance")
+        original_spec = {
+            "connection_public_id": "00000000-0000-0000-0000-000000000001",
+            "table": "deposits",
+            "header_columns": ["business_date"],
+            "main_columns": ["district", "total"],
+            "filter_columns": ["business_date"],
+            "filter_configs": [{"key": "business_date", "type": "date", "required": True}],
+            "chart_viz": {"theme": "brand"},
+            "custom_existing_setting": {"keep": True},
+        }
+        report = Report.objects.create(
+            tenant=self.tenant, group=group, report_id="finance-1", name="Finance", spec=original_spec
+        )
+        updated_spec = {**original_spec, "main_columns": ["district", "total", "saving_deposit"]}
+        response = self.client.put(
+            f"/api/reports/{report.id}/",
+            {
+                "report_id": report.report_id,
+                "name": "Finance updated",
+                "group": str(group.code),
+                "dataset": "deposits",
+                "criteria": "Current period",
+                "spec": updated_spec,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], report.id)
+        reloaded = self.client.get(f"/api/reports/{report.id}/")
+        self.assertEqual(reloaded.status_code, 200)
+        self.assertEqual(reloaded.data["id"], report.id)
+        self.assertEqual(reloaded.data["spec"], updated_spec)
