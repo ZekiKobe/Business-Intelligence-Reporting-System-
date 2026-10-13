@@ -21,7 +21,47 @@ from .serializers import QueryRunHistorySerializer, QueryRunSerializer, SqlExecu
 from .sql_safety import ensure_readonly_sql
 
 logger = logging.getLogger(__name__)
-_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*(?:\.[A-Za-z_][A-Za-z0-9_$]*)*$")
+_DANGEROUS_IDENTIFIER_CHARS = re.compile(r"[;\x00\r\n]|--|/\*|\*/")
+
+
+def _is_safe_identifier(val: str) -> bool:
+    if not val or not isinstance(val, str):
+        return False
+    s = val.strip()
+    if not (1 <= len(s) <= 256):
+        return False
+    if _DANGEROUS_IDENTIFIER_CHARS.search(s):
+        return False
+    clean = s
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith('`') and s.endswith('`')) or (s.startswith('[') and s.endswith(']')):
+        clean = s[1:-1]
+    if "'" in clean or "\\" in clean or ";" in clean:
+        return False
+    return bool(re.match(r"^[\w\s.\-()%/$\#@+]+$", clean, re.UNICODE))
+
+
+def _quote_identifier(name: str, kind: str = "") -> str:
+    s = str(name).strip()
+    if not s or s == "*":
+        return s
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith('`') and s.endswith('`')) or (s.startswith('[') and s.endswith(']')):
+        return s
+    if kind == DataConnection.Kind.MYSQL:
+        escaped = s.replace("`", "``")
+        return f"`{escaped}`"
+    if kind == DataConnection.Kind.MSSQL:
+        escaped = s.replace("]", "]]")
+        return f"[{escaped}]"
+    escaped = s.replace('"', '""')
+    return f'"{escaped}"'
+
+
+def _quote_table(table_name: str, kind: str = "") -> str:
+    s = str(table_name).strip()
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith('`') and s.endswith('`')) or (s.startswith('[') and s.endswith(']')):
+        return s
+    parts = s.split(".")
+    return ".".join(_quote_identifier(part, kind) for part in parts)
 
 
 def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnection, str, dict]:
@@ -36,13 +76,18 @@ def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnecti
     columns = list(dict.fromkeys(str(column) for column in columns if column))
     if not connection_id or not table:
         raise ValueError("This report is missing its data source configuration.")
-    if not _IDENTIFIER.fullmatch(str(table)) or any(not _IDENTIFIER.fullmatch(column) for column in columns):
+    if not _is_safe_identifier(str(table)) or any(not _is_safe_identifier(column) for column in columns):
         raise ValueError("This report contains an invalid dataset or column identifier.")
     connection = DataConnection.objects.filter(
         tenant=report.tenant, public_id=connection_id, is_active=True
     ).first()
     if not connection:
         raise ValueError("The report data source is unavailable.")
+
+    kind = connection.kind
+    quoted_columns = [_quote_identifier(col, kind) for col in columns]
+    quoted_table = _quote_table(str(table), kind)
+
     bound_parameters = {}
     where = []
     # Reports created before dynamic filter configuration retain their previous
@@ -53,7 +98,7 @@ def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnecti
         if not isinstance(config, dict):
             continue
         key = str(config.get("key") or "")
-        if key not in filter_columns or not _IDENTIFIER.fullmatch(key):
+        if key not in filter_columns or not _is_safe_identifier(key):
             continue
         # An omitted (or blank) browser value is deliberately different from a
         # SQL NULL: optional filters are left out of the WHERE clause.  Defaults
@@ -65,13 +110,13 @@ def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnecti
             if config.get("required", False):
                 raise ValueError(f"{config.get('label') or key} is required.")
             continue
-        kind = config.get("type", "select")
-        if kind == "date":
+        kind_type = config.get("type", "select")
+        if kind_type == "date":
             try:
                 date.fromisoformat(str(value)[:10])
             except (TypeError, ValueError):
                 raise ValueError(f"{config.get('label') or key} must be a valid date.")
-        elif kind == "number":
+        elif kind_type == "number":
             try:
                 Decimal(str(value))
             except (InvalidOperation, TypeError, ValueError):
@@ -80,10 +125,10 @@ def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnecti
         if isinstance(options, list) and options and value not in options and str(value) not in {str(v) for v in options}:
             raise ValueError(f"{config.get('label') or key} contains an invalid selection.")
         param_name = f"filter_{index}"
-        where.append(f"{key} = :{param_name}")
+        where.append(f"{_quote_identifier(key, kind)} = :{param_name}")
         bound_parameters[param_name] = value
 
-    sql = f"SELECT {', '.join(columns) if columns else '*'} FROM {table}"
+    sql = f"SELECT {', '.join(quoted_columns) if quoted_columns else '*'} FROM {quoted_table}"
     if where:
         sql = f"{sql} WHERE {' AND '.join(where)}"
     return connection, sql, bound_parameters
