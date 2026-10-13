@@ -21,6 +21,17 @@ import BiPageHeader from "../components/BiPageHeader";
 import PageLoadingSpinner from "../components/PageLoadingSpinner";
 import { toast } from "react-toastify";
 
+// Database DATE values often arrive as midnight timestamps. Display them as a
+// date in the designer preview while preserving the original value for queries.
+const formatPreviewValue = (value, columnName) => {
+  if (value == null) return "";
+  const text = String(value);
+  if (/(^|_)(date|at)$|^date/i.test(String(columnName || "")) && /^\d{4}-\d{2}-\d{2}[T\s]/.test(text)) {
+    return text.slice(0, 10);
+  }
+  return text;
+};
+
 const DesignReport = () => {
   const navigate = useNavigate();
   const { reportId: editReportPk } = useParams();
@@ -1053,7 +1064,7 @@ const DesignReport = () => {
                 {columnLists.header.length ? (
                   columnLists.header.map((col) => (
                     <div key={col.id} className="font-medium" style={{ color: "var(--surface-text)" }}>
-                      <span className="opacity-70">{col.name}:</span> {String(previewRows[0]?.[col.name] ?? "N/A")}
+                      <span className="opacity-70">{col.name}:</span> {formatPreviewValue(previewRows[0]?.[col.name] ?? "N/A", col.name)}
                     </div>
                   ))
                 ) : (
@@ -1098,7 +1109,7 @@ const DesignReport = () => {
                       return (
                         <tr key={idx}>
                           {names.map((name) => (
-                            <td key={`${idx}-${name}`}>{String(row[name] ?? "")}</td>
+                            <td key={`${idx}-${name}`}>{formatPreviewValue(row[name], name)}</td>
                           ))}
                         </tr>
                       );

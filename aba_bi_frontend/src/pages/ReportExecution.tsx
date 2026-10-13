@@ -32,6 +32,17 @@ const getRowValue = (row: Record<string, unknown> | null | undefined, colName: s
   return matchedKey ? row[matchedKey] : undefined;
 };
 
+const formatReportValue = (value: unknown, columnName: string, isDateColumn = false): string => {
+  if (value == null) return "";
+  const text = String(value);
+  // Keep server values intact for filtering/export, but render date columns
+  // without the database's midnight time component.
+  if ((isDateColumn || /(^|_)(date|at)$|^date/i.test(columnName)) && /^\d{4}-\d{2}-\d{2}[T\s]/.test(text)) {
+    return text.slice(0, 10);
+  }
+  return text;
+};
+
 const ReportExecutionPage = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -72,6 +83,7 @@ const ReportExecutionPage = () => {
       type?: string;
       required?: boolean;
       default?: string;
+      options?: unknown[];
     };
     const saved = (Array.isArray(spec?.filter_configs) ? spec.filter_configs : []) as SavedFilterConfig[];
     const savedByKey = new Map<string, SavedFilterConfig>(
@@ -85,6 +97,7 @@ const ReportExecutionPage = () => {
         type: cfg?.type || filterColumnTypesMap?.[key] || inferFilterKind(undefined, key),
         required: Boolean(cfg?.required),
         default: cfg?.default ?? "",
+        options: cfg && Array.isArray(cfg.options) ? cfg.options : [],
       };
     });
   }, [filterColumns, filterColumnTypesMap, spec?.filter_configs]);
@@ -107,6 +120,9 @@ const ReportExecutionPage = () => {
     });
     return out;
   }, [filterColumns, filterColumnTypesMap]);
+
+  const displayValue = (value: unknown, columnName: string) =>
+    formatReportValue(value, columnName, filterTypes[columnName] === "date");
 
   const filteredRows = useMemo(() => {
     if (!filterColumns.length) return rows;
@@ -287,6 +303,47 @@ const ReportExecutionPage = () => {
         </div>
 
         <div className="portal-surface-card p-5 md:p-6 mb-6 border-portal-stroke">
+          {filterConfigs.length > 0 && (
+            <section className="mb-5 pb-5 border-b border-portal-stroke" aria-labelledby="execution-filters-title">
+              <div className="flex items-center gap-2 mb-1">
+                <AdjustmentsHorizontalIcon className="h-4 w-4 text-portal-muted" />
+                <h2 id="execution-filters-title" className="font-display text-base font-semibold text-portal-text">Report filters</h2>
+              </div>
+              <p className="text-xs text-portal-muted mb-4">
+                Apply filters before running. Required filters must be completed; leave optional filters blank to run the whole report.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filterConfigs.map((config) => {
+                  const value = filterValues[config.key] ?? "";
+                  const fieldError = parameterErrors[config.key];
+                  const updateValue = (next: string) => {
+                    setFilterValues((current) => ({ ...current, [config.key]: next }));
+                    setParameterErrors((current) => ({ ...current, [config.key]: "" }));
+                  };
+                  const label = <span className="portal-label !mb-0">{config.label}{config.required ? <span className="text-red-600"> *</span> : <span className="opacity-60"> (optional)</span>}</span>;
+                  const common = { value, required: config.required, "aria-invalid": Boolean(fieldError) };
+                  return (
+                    <label key={config.key} className="flex flex-col gap-1">
+                      {label}
+                      {config.type === "date" ? (
+                        <input {...common} type="date" onChange={(e) => updateValue(e.target.value)} className="portal-input py-2 text-sm" />
+                      ) : config.type === "number" ? (
+                        <input {...common} type="number" onChange={(e) => updateValue(e.target.value)} className="portal-input py-2 text-sm" />
+                      ) : config.type === "select" && config.options.length > 0 ? (
+                        <select {...common} onChange={(e) => updateValue(e.target.value)} className="portal-select-compact text-sm">
+                          <option value="">{config.required ? "Select a value…" : "All values"}</option>
+                          {config.options.map((option) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}
+                        </select>
+                      ) : (
+                        <input {...common} type="text" placeholder={config.type === "select" ? "Enter a value…" : "Enter text…"} onChange={(e) => updateValue(e.target.value)} className="portal-input py-2 text-sm" />
+                      )}
+                      {fieldError ? <span className="text-xs text-red-700" role="alert">{fieldError}</span> : null}
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex flex-col gap-1">
               <span className="portal-label !mb-0">Row limit</span>
@@ -383,7 +440,7 @@ const ReportExecutionPage = () => {
                           <div key={col} className="break-words">
                             <span className="font-medium">{col}:</span>{" "}
                             <span>
-                              {String(getRowValue(filteredRows[0] as Record<string, unknown>, col) ?? "N/A")}
+                              {displayValue(getRowValue(filteredRows[0] as Record<string, unknown>, col) ?? "N/A", col)}
                             </span>
                           </div>
                         ))}
@@ -399,7 +456,7 @@ const ReportExecutionPage = () => {
                           <div key={col} className="break-words">
                             <span className="font-medium">{col}:</span>{" "}
                             <span>
-                              {String(getRowValue(filteredRows[0] as Record<string, unknown>, col) ?? "N/A")}
+                              {displayValue(getRowValue(filteredRows[0] as Record<string, unknown>, col) ?? "N/A", col)}
                             </span>
                           </div>
                         ))}
@@ -606,7 +663,7 @@ const ReportExecutionPage = () => {
                           </td>
                           {tableColumns.map((col) => (
                             <td key={`${rowIndex}-${col}`} className="whitespace-nowrap">
-                              {String(getRowValue(record, col) ?? "")}
+                              {displayValue(getRowValue(record, col), col)}
                             </td>
                           ))}
                         </tr>
@@ -617,7 +674,7 @@ const ReportExecutionPage = () => {
                                 {Object.entries(record).map(([key, value]) => (
                                   <div key={key} className="break-words">
                                     <span className="font-semibold">{key.replace(/_/g, " ")}:</span>{" "}
-                                    <span>{String(value ?? "")}</span>
+                                    <span>{displayValue(value, key)}</span>
                                   </div>
                                 ))}
                               </div>
