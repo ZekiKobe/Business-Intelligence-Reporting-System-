@@ -21,6 +21,8 @@ class QueryRun(models.Model):
     error = models.TextField(blank=True, default="")
     row_count = models.IntegerField(null=True, blank=True)
     preview = models.JSONField(blank=True, default=dict)
+    # Values supplied to a saved report, never rendered as SQL.
+    parameters = models.JSONField(blank=True, default=dict)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)

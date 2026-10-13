@@ -21,12 +21,12 @@ class QueryRunSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "connection",
-            "sql",
             "status",
             "error",
             "row_count",
             "duration_ms",
             "preview",
+            "parameters",
             "started_at",
             "finished_at",
             "created_at",

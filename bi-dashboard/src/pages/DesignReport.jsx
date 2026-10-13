@@ -57,6 +57,7 @@ const DesignReport = () => {
   const [chartValueKey, setChartValueKey] = useState("");
   const [chartValueAggregate, setChartValueAggregate] = useState("sum");
   const [aggregateMetrics, setAggregateMetrics] = useState([]);
+  const [filterConfigs, setFilterConfigs] = useState([]);
   const [chartViz, setChartViz] = useState(() => normalizeChartViz());
   const prevConnectionRef = useRef(null);
   const dragIdCounter = useRef(0);
@@ -140,6 +141,7 @@ const DesignReport = () => {
           setChartValueKey(existingSpec.chart_value_key || "");
           setChartValueAggregate(existingSpec.chart_value_aggregate || "sum");
           setChartViz(normalizeChartViz(existingSpec.chart_viz));
+          setFilterConfigs(Array.isArray(existingSpec.filter_configs) ? existingSpec.filter_configs : []);
         }
       } catch (error) {
         toast.error(
@@ -250,6 +252,26 @@ const DesignReport = () => {
     setAggregateMetrics([]);
     setColumnLists({ available: cols, header: [], main: [], filter: [] });
   }, [selectedTable, tables]);
+
+  // Filter columns are the source list; keep their saved configuration when
+  // designers rearrange columns and give newly-added filters safe defaults.
+  useEffect(() => {
+    const keys = columnLists.filter.map((column) => column.name);
+    const kinds = buildFilterColumnTypes();
+    setFilterConfigs((previous) =>
+      keys.map((key) => {
+        const saved = previous.find((config) => config?.key === key);
+        return {
+          key,
+          label: saved?.label || key,
+          type: saved?.type || kinds[key] || "select",
+          required: Boolean(saved?.required),
+          default: saved?.default ?? "",
+          options: Array.isArray(saved?.options) ? saved.options : [],
+        };
+      })
+    );
+  }, [columnLists.filter, selectedTable, tables]);
 
   const handleDragEnd = ({ source, destination }) => {
     if (!destination) return;
@@ -392,6 +414,16 @@ const DesignReport = () => {
           aggregate_metrics: aggregateMetrics.filter((m) => m.op === "count" || m.column),
           filter_columns: filterCols,
           filter_column_types: isTableViz ? buildFilterColumnTypes() : {},
+          filter_configs: isTableViz
+            ? filterConfigs
+                .filter((config) => filterCols.includes(config.key))
+                .map((config) => ({
+                  ...config,
+                  label: String(config.label || config.key).trim() || config.key,
+                  default: config.default === "" ? null : config.default,
+                  options: (config.options || []).filter((option) => option !== ""),
+                }))
+            : [],
           chart_type: chartType || "table",
           chart_category_key: chartType === "table" ? "" : chartCategoryKey,
           chart_value_key:
@@ -810,6 +842,27 @@ const DesignReport = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          ) : null}
+
+          {columnLists.filter.length > 0 && chartType === "table" ? (
+            <div className="md:col-span-2 rounded-xl border overflow-hidden" style={{ borderColor: "var(--stroke)", background: "color-mix(in srgb, var(--brand-primary-soft) 35%, var(--surface-bg))" }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: "var(--stroke)" }}>
+                <h3 className="text-sm font-semibold font-display" style={{ color: "var(--surface-text)" }}>Execution filters</h3>
+                <p className="text-xs opacity-70 mt-0.5">These controls appear before a user runs the report. Required filters are also enforced by the server.</p>
+              </div>
+              <div className="p-4 space-y-3">
+                {filterConfigs.map((config, index) => (
+                  <div key={config.key} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 rounded-lg border p-3" style={{ borderColor: "var(--stroke)", background: "var(--surface-bg)" }}>
+                    <label className="block"><span className="ui-label">Parameter key</span><input className="ui-input w-full text-sm" value={config.key} disabled /></label>
+                    <label className="block"><span className="ui-label">Display label</span><input className="ui-input w-full text-sm" value={config.label} onChange={(e) => setFilterConfigs((all) => all.map((item, i) => i === index ? { ...item, label: e.target.value } : item))} /></label>
+                    <label className="block"><span className="ui-label">Type</span><select className="ui-select w-full text-sm" value={config.type} onChange={(e) => setFilterConfigs((all) => all.map((item, i) => i === index ? { ...item, type: e.target.value } : item))}><option value="select">Selection</option><option value="text">Text</option><option value="date">Date</option><option value="number">Number</option></select></label>
+                    <label className="block"><span className="ui-label">Default value</span><input type={config.type === "date" ? "date" : config.type === "number" ? "number" : "text"} className="ui-input w-full text-sm" value={config.default ?? ""} onChange={(e) => setFilterConfigs((all) => all.map((item, i) => i === index ? { ...item, default: e.target.value } : item))} /></label>
+                    <label className="flex items-end gap-2 pb-2 text-sm font-medium" style={{ color: "var(--surface-text)" }}><input type="checkbox" checked={Boolean(config.required)} onChange={(e) => setFilterConfigs((all) => all.map((item, i) => i === index ? { ...item, required: e.target.checked } : item))} /> Required</label>
+                    {config.type === "select" ? <label className="block sm:col-span-2 lg:col-span-5"><span className="ui-label">Allowed options <span className="opacity-60">(one per line; leave blank to use a free selection)</span></span><textarea className="ui-input w-full text-sm min-h-16" value={(config.options || []).join("\n")} onChange={(e) => setFilterConfigs((all) => all.map((item, i) => i === index ? { ...item, options: e.target.value.split("\n").map((v) => v.trim()).filter(Boolean) } : item))} /></label> : null}
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}

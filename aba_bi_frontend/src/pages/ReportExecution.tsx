@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { FileDown, FileText, Play } from "lucide-react";
+import { FileDown, FileText, Play, Info } from "lucide-react";
 import { saveAs } from "file-saver";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
@@ -9,7 +9,7 @@ import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
 import PortalLayout from "../layouts/PortalLayout";
 import ReportChart from "../components/ReportChart";
-import { executeSql, getReportById } from "../services/api";
+import { executeSavedReport, getReportById } from "../services/api";
 import {
   distinctValues,
   inferFilterKind,
@@ -47,6 +47,9 @@ const ReportExecutionPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [execRowLimit, setExecRowLimit] = useState(10_000);
   const [lastRowCount, setLastRowCount] = useState<number | null>(null);
+  const [execution, setExecution] = useState<any>(null);
+  const [showExecutionDetails, setShowExecutionDetails] = useState(false);
+  const [parameterErrors, setParameterErrors] = useState<Record<string, string>>({});
 
   const spec = report?.spec || {};
   const headerColumns: string[] = (spec?.header_columns || []).filter(Boolean);
@@ -54,6 +57,17 @@ const ReportExecutionPage = () => {
   const aggregateColumns: string[] = (spec?.aggregate_columns || []).filter(Boolean);
   const filterColumns: string[] = (spec?.filter_columns || []).filter(Boolean);
   const filterColumnTypesMap = spec?.filter_column_types as Record<string, string> | undefined;
+  const filterConfigs = useMemo(() => {
+    const saved = Array.isArray(spec?.filter_configs) ? spec.filter_configs : [];
+    const savedByKey = new Map(saved.filter((item: any) => item?.key).map((item: any) => [item.key, item]));
+    return filterColumns.map((key) => ({
+      key,
+      label: savedByKey.get(key)?.label || key.replace(/_/g, " "),
+      type: savedByKey.get(key)?.type || filterColumnTypesMap?.[key] || inferFilterKind(undefined, key),
+      required: Boolean(savedByKey.get(key)?.required),
+      default: savedByKey.get(key)?.default ?? "",
+    }));
+  }, [filterColumns, filterColumnTypesMap, spec?.filter_configs]);
   const chartTypeViz =
     spec?.chart_type && String(spec.chart_type) !== "" ? String(spec.chart_type) : "table";
   const chartValueAggregate = (spec?.chart_value_aggregate as string) || "sum";
@@ -95,6 +109,17 @@ const ReportExecutionPage = () => {
   }, [id]);
 
   useEffect(() => {
+    if (!filterConfigs.length) return;
+    setFilterValues((current) => {
+      const next = { ...current };
+      filterConfigs.forEach((config) => {
+        if (next[config.key] == null && config.default !== "") next[config.key] = String(config.default);
+      });
+      return next;
+    });
+  }, [filterConfigs]);
+
+  useEffect(() => {
     setRows([]);
     setFilterValues({});
     setExecuted(false);
@@ -134,40 +159,26 @@ const ReportExecutionPage = () => {
   const pageStart = filteredRows.length ? (currentPage - 1) * rowsPerPage + 1 : 0;
   const pageEnd = Math.min(currentPage * rowsPerPage, filteredRows.length);
 
-  const buildSqlFromSpec = (rep: any) => {
-    const spec = rep?.spec || {};
-    const connectionId = spec.connection_public_id;
-    const tableName = spec.table || rep?.dataset;
-    const selectedColumns = [
-      ...(spec.header_columns || []),
-      ...(spec.main_columns || []),
-      ...(spec.aggregate_columns || []),
-      ...(spec.filter_columns || []),
-    ].filter(Boolean);
-    const uniqueColumns = Array.from(new Set(selectedColumns));
-    const selectExpr = uniqueColumns.length ? uniqueColumns.join(", ") : "*";
-    const sql = `SELECT ${selectExpr} FROM ${tableName}`;
-    return { connectionId, sql };
-  };
-
   const onExecute = async () => {
     if (!report) return;
+    const nextErrors: Record<string, string> = {};
+    filterConfigs.forEach((config) => {
+      if (config.required && !String(filterValues[config.key] || "").trim()) {
+        nextErrors[config.key] = `${config.label} is required.`;
+      }
+    });
+    setParameterErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
     setLoading(true);
     setError("");
 
     try {
-      const { connectionId, sql } = buildSqlFromSpec(report);
-      if (!connectionId) {
-        throw new Error("Report does not have a connection configured.");
-      }
-      if (!sql.includes("FROM")) {
-        throw new Error("Report is missing table metadata.");
-      }
-
-      const res = await executeSql({
-        connection_id: connectionId,
-        sql,
+      const parameters = Object.fromEntries(
+        Object.entries(filterValues).filter(([, value]) => String(value ?? "").trim() !== "")
+      );
+      const res = await executeSavedReport(id!, {
         limit: execRowLimit,
+        parameters,
       });
       const loaded = res?.preview?.rows || [];
       // Keep showing previous rows until this succeeds; then replace in one shot.
@@ -176,6 +187,7 @@ const ReportExecutionPage = () => {
       setLastRowCount(typeof res?.row_count === "number" ? res.row_count : loaded.length);
       setCurrentPage(1);
       setExecuted(true);
+      setExecution(res);
       console.log("[report execute]", { rowCount: res?.row_count, limit: execRowLimit });
     } catch (e: any) {
       setError(e?.response?.data?.detail || e?.message || "Execution failed.");

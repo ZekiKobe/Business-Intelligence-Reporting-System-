@@ -81,7 +81,7 @@ export default function RunReportPage() {
             accent="sky"
           />
         </div>
-        <ReportExecutionView report={report} groupMap={groupMap} autoRun onBack={() => navigate("/reports")} />
+        <ReportExecutionView report={report} groupMap={groupMap} onBack={() => navigate("/reports")} />
       </div>
     </div>
   );

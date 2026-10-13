@@ -88,4 +88,25 @@ class SqlExecuteTests(TestCase):
         self.assertNotIn("sql", history.data[0])
         self.assertNotIn("preview", history.data[0])
 
+    def test_saved_report_enforces_configured_required_filter(self):
+        group = ReportGroup.objects.create(tenant=self.tenant, group_name="Required filters")
+        report = Report.objects.create(
+            tenant=self.tenant,
+            group=group,
+            report_id="required-1",
+            name="Required filter report",
+            dataset="safe_table",
+            spec={
+                "connection_public_id": str(self.conn.public_id),
+                "table": "safe_table",
+                "filter_columns": ["business_date"],
+                "filter_configs": [
+                    {"key": "business_date", "label": "Business date", "required": True, "type": "date"}
+                ],
+            },
+        )
+        missing = self.client.post(f"/api/v1/reports/{report.id}/execute", {}, format="json")
+        self.assertEqual(missing.status_code, 400)
+        self.assertIn("Business date is required", missing.data["detail"])
+
 # Create your tests here.

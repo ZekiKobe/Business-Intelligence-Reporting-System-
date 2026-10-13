@@ -159,4 +159,12 @@ export const executeSql = async (payload: {
   return response.data;
 };
 
+export const executeSavedReport = async (
+  reportId: string | number,
+  payload: { limit?: number; parameters?: Record<string, string> }
+) => {
+  const response = await api.post(`v1/reports/${reportId}/execute`, payload);
+  return response.data;
+};
+
 export default api;

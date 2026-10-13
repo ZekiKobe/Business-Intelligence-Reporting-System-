@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal, InvalidOperation
 import json
 import logging
 import re
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*(?:\.[A-Za-z_][A-Za-z0-9_$]*)*$")
 
 
-def _report_sql(report: Report) -> tuple[DataConnection, str]:
+def _report_sql(report: Report, supplied_parameters: dict) -> tuple[DataConnection, str, dict]:
     """Build the limited report query server-side from trusted report metadata."""
     spec = report.spec or {}
     connection_id = spec.get("connection_public_id")
@@ -42,13 +43,56 @@ def _report_sql(report: Report) -> tuple[DataConnection, str]:
     ).first()
     if not connection:
         raise ValueError("The report data source is unavailable.")
-    return connection, f"SELECT {', '.join(columns) if columns else '*'} FROM {table}"
+    bound_parameters = {}
+    where = []
+    # Reports created before dynamic filter configuration retain their previous
+    # no-WHERE semantics. Only explicitly configured filters affect SQL.
+    configured_filters = spec.get("filter_configs") or []
+    filter_columns = {str(column) for column in spec.get("filter_columns", [])}
+    for index, config in enumerate(configured_filters):
+        if not isinstance(config, dict):
+            continue
+        key = str(config.get("key") or "")
+        if key not in filter_columns or not _IDENTIFIER.fullmatch(key):
+            continue
+        # An omitted (or blank) browser value is deliberately different from a
+        # SQL NULL: optional filters are left out of the WHERE clause.  Defaults
+        # are only used as a value when one was configured by the report author.
+        value = supplied_parameters.get(key)
+        if value is None or value == "":
+            value = config.get("default")
+        if value is None or value == "":
+            if config.get("required", False):
+                raise ValueError(f"{config.get('label') or key} is required.")
+            continue
+        kind = config.get("type", "select")
+        if kind == "date":
+            try:
+                date.fromisoformat(str(value)[:10])
+            except (TypeError, ValueError):
+                raise ValueError(f"{config.get('label') or key} must be a valid date.")
+        elif kind == "number":
+            try:
+                Decimal(str(value))
+            except (InvalidOperation, TypeError, ValueError):
+                raise ValueError(f"{config.get('label') or key} must be a valid number.")
+        options = config.get("options")
+        if isinstance(options, list) and options and value not in options and str(value) not in {str(v) for v in options}:
+            raise ValueError(f"{config.get('label') or key} contains an invalid selection.")
+        param_name = f"filter_{index}"
+        where.append(f"{key} = :{param_name}")
+        bound_parameters[param_name] = value
+
+    sql = f"SELECT {', '.join(columns) if columns else '*'} FROM {table}"
+    if where:
+        sql = f"{sql} WHERE {' AND '.join(where)}"
+    return connection, sql, bound_parameters
 
 
 def _execute_run(run: QueryRun, *, limit: int | None) -> QueryRun:
     started = perf_counter()
     try:
-        row_count, preview = execute_sql(connection=run.connection, sql=run.sql, limit=limit)
+        row_count, preview = execute_sql(connection=run.connection, sql=run.sql, limit=limit, parameters=run.parameters)
         run.status = QueryRun.Status.SUCCEEDED
         run.row_count = row_count
         run.preview = {"rows": json.loads(json.dumps(preview, cls=DjangoJSONEncoder))}
@@ -101,7 +145,10 @@ class ReportExecuteView(APIView):
         if not report or (allowed_groups is not None and report.group_id not in allowed_groups):
             return Response({"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND)
         try:
-            connection, sql = _report_sql(report)
+            supplied_parameters = request.data.get("parameters") or {}
+            if not isinstance(supplied_parameters, dict):
+                return Response({"detail": "Invalid report parameters."}, status=status.HTTP_400_BAD_REQUEST)
+            connection, sql, bound_parameters = _report_sql(report, supplied_parameters)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -111,7 +158,7 @@ class ReportExecuteView(APIView):
         if limit is not None and not 1 <= limit <= 200000:
             return Response({"detail": "Row limit must be between 1 and 200000."}, status=status.HTTP_400_BAD_REQUEST)
         run = QueryRun.objects.create(
-            tenant=tenant, user=request.user, connection=connection, sql=sql,
+            tenant=tenant, user=request.user, connection=connection, sql=sql, parameters=bound_parameters,
             status=QueryRun.Status.RUNNING, started_at=datetime.now(tz=timezone.utc),
         )
         return Response(QueryRunSerializer(_execute_run(run, limit=limit)).data)

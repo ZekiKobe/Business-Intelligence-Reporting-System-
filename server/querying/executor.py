@@ -11,7 +11,7 @@ from connections.models import DataConnection
 
 
 def execute_sql(
-    *, connection: DataConnection, sql: str, limit: Optional[int]
+    *, connection: DataConnection, sql: str, limit: Optional[int], parameters: Optional[Dict[str, Any]] = None
 ) -> Tuple[int, List[Dict[str, Any]]]:
     if connection.kind in {
         DataConnection.Kind.POSTGRES,
@@ -24,7 +24,7 @@ def execute_sql(
         effective_limit = default_cap if limit is None else int(limit)
         engine = get_sqlalchemy_engine(connection)
         with engine.connect() as c:
-            result = c.execution_options(stream_results=True).execute(text(sql))
+            result = c.execution_options(stream_results=True).execute(text(sql), parameters or {})
             rows = result.fetchmany(size=effective_limit)
             cols = list(result.keys())
         data = [dict(zip(cols, row)) for row in rows]
