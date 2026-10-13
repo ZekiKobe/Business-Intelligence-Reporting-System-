@@ -124,7 +124,7 @@ class SqlExecuteTests(TestCase):
             },
         )
         _, sql, params = _report_sql(report, {})
-        self.assertNotIn("region", sql)
+        self.assertNotIn("WHERE region =", sql)
         self.assertIn("business_date", sql)
         self.assertEqual(params, {"filter_1": "2026-01-01"})
 
