@@ -16,6 +16,7 @@ const Users = () => {
   const [search, setSearch] = useState('');
 
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [userToRemove, setUserToRemove] = useState(null);
   const [removing, setRemoving] = useState(false);
 
@@ -83,7 +84,14 @@ const Users = () => {
           badges={[{ label: `${users.length} account${users.length === 1 ? "" : "s"}` }]}
           accent="teal"
           actions={
-            <button type="button" onClick={() => setIsPopupOpen(true)} className="ui-btn-primary">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingUser(null);
+                setIsPopupOpen(true);
+              }}
+              className="ui-btn-primary"
+            >
               <Plus size={18} /> New user
             </button>
           }
@@ -176,7 +184,15 @@ const Users = () => {
                     </td>
                     <td className="whitespace-nowrap opacity-75 text-sm">{user.joinDate}</td>
                     <td className="whitespace-nowrap text-right">
-                      <button type="button" className="ui-btn-ghost p-2 rounded-lg opacity-70" title="Edit">
+                      <button
+                        type="button"
+                        className="ui-btn-ghost p-2 rounded-lg opacity-70 hover:opacity-100"
+                        title="Edit user"
+                        onClick={() => {
+                          setEditingUser(user);
+                          setIsPopupOpen(true);
+                        }}
+                      >
                         <Edit size={16} />
                       </button>
                       <button
@@ -230,8 +246,12 @@ const Users = () => {
       </div>
       <UserCreationPopup
         isOpen={isPopupOpen}
-        onClose={() => setIsPopupOpen(false)}
+        onClose={() => {
+          setIsPopupOpen(false);
+          setEditingUser(null);
+        }}
         onSave={handleAddUser}
+        userToEdit={editingUser}
       />
       <ConfirmDialog
         isOpen={Boolean(userToRemove)}

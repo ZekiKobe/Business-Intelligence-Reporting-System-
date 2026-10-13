@@ -80,4 +80,19 @@ class ExternalLoginTests(TestCase):
         self.assertEqual(removed.status_code, 204)
         self.assertFalse(User.objects.filter(id=created.data["id"]).exists())
 
+    def test_admin_creation_supports_legacy_payload_without_username(self):
+        self.client.force_authenticate(user=self.user)
+        created = self.client.post(
+            "/api/user",
+            {
+                "name": "Legacy Viewer",
+                "email": "legacy.viewer@example.com",
+                "password": "pass12345",
+                "role": "Viewer",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["username"], "legacy.viewer")
+
 # Create your tests here.

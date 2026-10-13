@@ -25,5 +25,6 @@ urlpatterns = [
     path("user/me/", CurrentUserView.as_view(), name="user-me"),
     path("user/me", CurrentUserView.as_view(), name="user-me-noslash"),
     path("user/<int:user_id>/", UserDetailView.as_view(), name="user-detail"),
+    path("user/<int:user_id>", UserDetailView.as_view(), name="user-detail-noslash"),
 ]
 

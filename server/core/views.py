@@ -10,6 +10,7 @@ from .serializers import (
     MembershipSerializer,
     PortalBrandingWriteSerializer,
     UserCreateSerializer,
+    UserUpdateSerializer,
     branding_to_camel,
 )
 from .tenancy import TENANT_HEADER, resolve_tenant_for_user
@@ -117,7 +118,66 @@ class CreateUserView(APIView):
 
 
 class UserDetailView(APIView):
-    """Remove a user from the current tenant without affecting other tenants."""
+    """Update or remove a user from the current tenant without affecting other tenants."""
+
+    def put(self, request, user_id):
+        return self.patch(request, user_id)
+
+    def patch(self, request, user_id):
+        ctx, denied = CreateUserView._require_tenant_admin(request)
+        if denied:
+            return denied
+
+        membership = (
+            Membership.objects.select_related("user")
+            .filter(tenant=ctx.tenant, user_id=user_id)
+            .first()
+        )
+        if not membership:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if user_id == request.user.id:
+            if request.data.get("status") == "Inactive":
+                return Response(
+                    {"detail": "You cannot deactivate your own account."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if (
+                request.data.get("role")
+                and request.data.get("role") != Membership.Role.ADMIN
+            ):
+                other_admins = (
+                    Membership.objects.filter(tenant=ctx.tenant, role=Membership.Role.ADMIN)
+                    .exclude(user_id=user_id)
+                    .exists()
+                )
+                if not other_admins:
+                    return Response(
+                        {"detail": "Cannot demote the only administrator in this workspace."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        serializer = UserUpdateSerializer(
+            data=request.data,
+            context={"tenant": ctx.tenant, "target_user": membership.user, "membership": membership},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.update(membership.user, serializer.validated_data)
+        membership.refresh_from_db()
+
+        return Response(
+            {
+                "id": user.id,
+                "name": user.full_name or user.username,
+                "username": user.username,
+                "email": user.email,
+                "role": membership.role,
+                "status": membership.status,
+                "joinDate": membership.created_at.date().isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def delete(self, request, user_id):
         ctx, denied = CreateUserView._require_tenant_admin(request)

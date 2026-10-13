@@ -72,7 +72,6 @@ const Dashboard = () => {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5 mb-8">
         <div className="ui-kpi relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 opacity-[0.07] pointer-events-none" style={{ background: "var(--brand-primary)" }} />
           <div className="flex items-start justify-between gap-3 relative">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-55">Total reports</p>

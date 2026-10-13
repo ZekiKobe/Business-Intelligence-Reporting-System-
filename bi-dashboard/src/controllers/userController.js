@@ -1,14 +1,23 @@
-import { createUserApi, deleteUserApi, getMeApi, getUsersApi } from "../services/userApi";
+import { createUserApi, deleteUserApi, getMeApi, getUsersApi, updateUserApi } from "../services/userApi";
 
-export const createUser =  async(userData) => {
-    try {
-        const res = await createUserApi(userData);
+export const createUser = async (userData) => {
+  try {
+    const res = await createUserApi(userData);
+    return res.data;
+  } catch (error) {
+    console.log("Error creating user", error);
+    throw error;
+  }
+};
 
-        return res.data;
-    } catch (error) {
-        console.log('Error creating user', error);
-        throw error;
-    }
+export const updateUser = async (userId, userData) => {
+  try {
+    const res = await updateUserApi(userId, userData);
+    return res.data;
+  } catch (error) {
+    console.log("Error updating user", error);
+    throw error;
+  }
 };
 
 export const getUsers = async () => {
