@@ -447,6 +447,24 @@ const DesignReport = () => {
     });
   };
 
+  // Charts do not expose the table drag canvas, but they still support the
+  // same saved execution filters. Keep their source of truth in the filter
+  // zone so table/chart mode switches never lose configuration.
+  const toggleChartFilter = (columnName) => {
+    setColumnLists((prev) => {
+      const existing = prev.filter || [];
+      const index = existing.findIndex((column) => column.name === columnName);
+      if (index >= 0) {
+        return { ...prev, filter: existing.filter((_, itemIndex) => itemIndex !== index) };
+      }
+      dragIdCounter.current += 1;
+      return {
+        ...prev,
+        filter: [...existing, { name: columnName, id: `filter-${columnName}-${dragIdCounter.current}` }],
+      };
+    });
+  };
+
   const buildFilterColumnTypes = () => {
     const table = tables.find(
       (t) => normalizeIdentifier(getTableNameFromSchemaRow(t)) === normalizeIdentifier(selectedTable)
@@ -499,7 +517,7 @@ const DesignReport = () => {
       const mainCols = isTableViz
         ? columnLists.main.map((c) => c.name)
         : chartSqlMainColumns || [];
-      const filterCols = isTableViz ? columnLists.filter.map((c) => c.name) : [];
+      const filterCols = columnLists.filter.map((c) => c.name);
       const payload = {
         report_id: reportId,
         name: reportTitle || reportId,
@@ -515,17 +533,15 @@ const DesignReport = () => {
           aggregate_columns: aggregateMetrics.map((m) => m.column).filter(Boolean),
           aggregate_metrics: aggregateMetrics.filter((m) => m.op === "count" || m.column),
           filter_columns: filterCols,
-          filter_column_types: isTableViz ? buildFilterColumnTypes() : {},
-          filter_configs: isTableViz
-            ? filterConfigs
-                .filter((config) => filterCols.includes(config.key))
-                .map((config) => ({
-                  ...config,
-                  label: String(config.label || config.key).trim() || config.key,
-                  default: config.default === "" ? null : config.default,
-                  options: (config.options || []).filter((option) => option !== ""),
-                }))
-            : [],
+          filter_column_types: buildFilterColumnTypes(),
+          filter_configs: filterConfigs
+            .filter((config) => filterCols.includes(config.key))
+            .map((config) => ({
+              ...config,
+              label: String(config.label || config.key).trim() || config.key,
+              default: config.default === "" ? null : config.default,
+              options: (config.options || []).filter((option) => option !== ""),
+            })),
           chart_type: chartType || "table",
           chart_category_key: chartType === "table" ? "" : chartCategoryKey,
           chart_value_key:
@@ -863,6 +879,33 @@ const DesignReport = () => {
                       </span>
                     </span>
                   </div>
+                  <div className="rounded-xl border p-4" style={{ borderColor: "var(--stroke)", background: "color-mix(in srgb, var(--brand-primary-soft) 28%, var(--surface-bg))" }}>
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                      <div>
+                        <h4 className="text-sm font-semibold" style={{ color: "var(--surface-text)" }}>Filters before run</h4>
+                        <p className="text-xs opacity-70 mt-0.5">Choose fields that viewers can use to narrow chart data. Their required/optional rules are configured below and enforced by the server.</p>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ color: "var(--brand-primary)", background: "var(--brand-primary-soft)" }}>{columnLists.filter.length} selected</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {tableSchemaColumns.map((columnName) => {
+                        const selected = columnLists.filter.some((column) => column.name === columnName);
+                        return (
+                          <button
+                            key={columnName}
+                            type="button"
+                            onClick={() => toggleChartFilter(columnName)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
+                            style={selected
+                              ? { borderColor: "var(--brand-primary)", background: "var(--brand-primary)", color: "#fff" }
+                              : { borderColor: "var(--stroke)", background: "var(--surface-bg)", color: "var(--surface-text)" }}
+                          >
+                            {selected ? "✓ " : "+ "}{columnName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </>
               ) : null}
 
@@ -962,7 +1005,7 @@ const DesignReport = () => {
             </div>
           ) : null}
 
-          {columnLists.filter.length > 0 && chartType === "table" ? (
+          {columnLists.filter.length > 0 ? (
             <div className="md:col-span-2 rounded-xl border overflow-hidden" style={{ borderColor: "var(--stroke)", background: "color-mix(in srgb, var(--brand-primary-soft) 35%, var(--surface-bg))" }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: "var(--stroke)" }}>
                 <h3 className="text-sm font-semibold font-display" style={{ color: "var(--surface-text)" }}>Execution filters</h3>

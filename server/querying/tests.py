@@ -128,4 +128,21 @@ class SqlExecuteTests(TestCase):
         self.assertIn("business_date", sql)
         self.assertEqual(params, {"filter_1": "2026-01-01"})
 
+    def test_chart_report_uses_saved_filters_before_execution(self):
+        group = ReportGroup.objects.create(tenant=self.tenant, group_name="Chart filters")
+        report = Report.objects.create(
+            tenant=self.tenant, group=group, report_id="chart-filter-1", name="Deposits by district",
+            dataset="safe_table",
+            spec={
+                "connection_public_id": str(self.conn.public_id), "table": "safe_table",
+                "chart_type": "bar", "main_columns": ["district", "amount"],
+                "filter_columns": ["business_date"],
+                "filter_configs": [{"key": "business_date", "required": True, "type": "date"}],
+            },
+        )
+
+        _, sql, params = _report_sql(report, {"business_date": "2026-02-01"})
+        self.assertIn("business_date = :filter_0", sql)
+        self.assertEqual(params, {"filter_0": "2026-02-01"})
+
 # Create your tests here.
