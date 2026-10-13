@@ -5,6 +5,7 @@ from rest_framework.test import APIClient
 from connections.models import DataConnection
 from core.models import Membership, Tenant
 from reporting.models import Report, ReportGroup, UserReportGroupAccess
+from querying.views import _report_sql
 
 
 User = get_user_model()
@@ -108,5 +109,23 @@ class SqlExecuteTests(TestCase):
         missing = self.client.post(f"/api/v1/reports/{report.id}/execute", {}, format="json")
         self.assertEqual(missing.status_code, 400)
         self.assertIn("Business date is required", missing.data["detail"])
+
+    def test_optional_filter_is_omitted_and_required_default_is_bound(self):
+        group = ReportGroup.objects.create(tenant=self.tenant, group_name="Configured filters")
+        report = Report.objects.create(
+            tenant=self.tenant, group=group, report_id="filters-1", name="Filters", dataset="safe_table",
+            spec={
+                "connection_public_id": str(self.conn.public_id), "table": "safe_table",
+                "filter_columns": ["region", "business_date"],
+                "filter_configs": [
+                    {"key": "region", "required": False, "type": "select"},
+                    {"key": "business_date", "required": True, "type": "date", "default": "2026-01-01"},
+                ],
+            },
+        )
+        _, sql, params = _report_sql(report, {})
+        self.assertNotIn("region", sql)
+        self.assertIn("business_date", sql)
+        self.assertEqual(params, {"filter_1": "2026-01-01"})
 
 # Create your tests here.

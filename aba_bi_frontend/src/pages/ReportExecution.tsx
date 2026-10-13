@@ -58,15 +58,27 @@ const ReportExecutionPage = () => {
   const filterColumns: string[] = (spec?.filter_columns || []).filter(Boolean);
   const filterColumnTypesMap = spec?.filter_column_types as Record<string, string> | undefined;
   const filterConfigs = useMemo(() => {
-    const saved = Array.isArray(spec?.filter_configs) ? spec.filter_configs : [];
-    const savedByKey = new Map(saved.filter((item: any) => item?.key).map((item: any) => [item.key, item]));
-    return filterColumns.map((key) => ({
-      key,
-      label: savedByKey.get(key)?.label || key.replace(/_/g, " "),
-      type: savedByKey.get(key)?.type || filterColumnTypesMap?.[key] || inferFilterKind(undefined, key),
-      required: Boolean(savedByKey.get(key)?.required),
-      default: savedByKey.get(key)?.default ?? "",
-    }));
+    type SavedFilterConfig = {
+      key?: string;
+      label?: string;
+      type?: string;
+      required?: boolean;
+      default?: string;
+    };
+    const saved = (Array.isArray(spec?.filter_configs) ? spec.filter_configs : []) as SavedFilterConfig[];
+    const savedByKey = new Map<string, SavedFilterConfig>(
+      saved.filter((item) => Boolean(item?.key)).map((item) => [String(item.key), item])
+    );
+    return filterColumns.map((key) => {
+      const cfg = savedByKey.get(key);
+      return {
+        key,
+        label: cfg?.label || key.replace(/_/g, " "),
+        type: cfg?.type || filterColumnTypesMap?.[key] || inferFilterKind(undefined, key),
+        required: Boolean(cfg?.required),
+        default: cfg?.default ?? "",
+      };
+    });
   }, [filterColumns, filterColumnTypesMap, spec?.filter_configs]);
   const chartTypeViz =
     spec?.chart_type && String(spec.chart_type) !== "" ? String(spec.chart_type) : "table";
